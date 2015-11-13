@@ -1,0 +1,1625 @@
+# write out each function so it can handle the genome 
+# this means work off the alternative matricies
+
+
+
+
+# how to use th enew matrix to do this
+
+# we have to worry about zero values telling us there are no neighbors
+# when we calculate the w matrix
+
+neighbor.matrix = function(binned_genome, X){
+  B <- binned_genome
+  C <- B
+  C$start.end <- NA
+  C$end.start <- NA
+  
+  C[1:(nrow(C)-1), "start.end"] = C[2:(nrow(C)),"start"]
+  C[2:(nrow(C)), "end.start"] = C[1:(nrow(C)-1),"end"]
+  D <- data.frame(C$start.end - C$end, C$start - C$end.start)
+  D[is.na(D)] = 0
+  
+  coord.1 <- coord.2 <- matrix(0, nrow = nrow(B), ncol = 2)
+  coord.1[1:nrow(B),1] = 1:nrow(B)
+  coord.1[1:(nrow(B)-1),2] = 2:nrow(B)
+  coord.1[D[,1] != 1,2] = coord.1[D[,1] != 1,1]
+  coord.2[1:nrow(B),1] = 1:nrow(B)
+  coord.2[2:(nrow(B)),2] = 1:(nrow(B)-1)
+  coord.2[D[,2] != 1,2] = coord.2[D[,2] != 1,1]
+  
+  ### Removing all lonly bins from B and rewrite the above
+  keep = coord.1[,2] != coord.2[,2]
+  B <- B[keep,]
+  
+  C <- B
+  C$start.end <- NA
+  C$end.start <- NA
+  
+  C[1:(nrow(C)-1), "start.end"] = C[2:(nrow(C)),"start"]
+  C[2:(nrow(C)), "end.start"] = C[1:(nrow(C)-1),"end"]
+  D <- data.frame(C$start.end - C$end, C$start - C$end.start)
+  D[is.na(D)] = 0
+  
+  coord.1 <- coord.2 <- matrix(0, nrow = nrow(B), ncol = 2)
+  
+  coord.1[1:nrow(B),1] = 1:nrow(B)
+  coord.1[1:(nrow(B)-1),2] = 2:nrow(B)
+  coord.1[D[,1] != 1,2] = coord.1[D[,1] != 1,1]
+  
+  
+  coord.2[1:nrow(B),1] = 1:nrow(B)
+  coord.2[2:(nrow(B)),2] = 1:(nrow(B)-1)
+  coord.2[D[,2] != 1,2] = coord.2[D[,2] != 1,1]
+  
+  keepers = coord.1[,1]
+  
+  Neighbors = matrix(ncol = 3, nrow = nrow(D))
+  
+  Neighbors[,1] = X[coord.2[,2]]
+  Neighbors[,2] = X[coord.2[,1]]
+  Neighbors[,3] = X[coord.1[,2]]
+  Neighbors[Neighbors[,1] == Neighbors[,2],1] = 0
+  Neighbors[Neighbors[,2] == Neighbors[,3],3] = 0
+  
+  w.mat = matrix(ncol = 3, nrow = nrow(D))
+  w.mat[,2] = coord.2[,1]
+  w.mat[,1] = coord.2[,2]
+  w.mat[,3] = coord.1[,2]
+  w.mat[w.mat[,1] == w.mat[,2],1] = 0
+  w.mat[w.mat[,2] == w.mat[,3],3] = 0
+  w.mat[w.mat > 0] = 1
+  
+  mats <- c(list(Neighbors), list(w.mat), list(keepers))
+  names(mats) = c("neighbors", "w.mat", "keepers")
+  return(mats)
+  
+}
+
+
+
+
+
+
+hotspot.G.WG <- function(X, neighbors, w.mat){
+  Weight.matrix = w.mat
+  n = length(X)
+  X.bar = mean(X)
+  S = sqrt((sum(X^2) / n) - X.bar^2)
+  
+  NUM = (rowSums(neighbors) - (X.bar * rowSums(Weight.matrix)))
+  DEN = S * sqrt(((n * rowSums(Weight.matrix^2)) - (rowSums(Weight.matrix)^2))/(n-1))
+  Z_score = NUM/DEN
+  
+  
+  P_value = 2*pnorm(-abs(Z_score))
+  FDR = p.adjust(p=P_value, method="fdr")
+  return(data.frame(G.Z_socre = Z_score, P_value = P_value, FDR = FDR))
+}
+
+
+
+hotspot.G <- function(X, w){
+  n = length(X)
+  X.bar = mean(X)
+  S = sqrt((sum(X^2) / n) - X.bar^2)
+  Z_score = (rowSums(t(t(w) * X)) - (X.bar * rowSums(w)))/(S * sqrt(((n * rowSums(w^2))- rowSums(w)^2)/(n-1)))
+  P_value = 2*pnorm(-abs(Z_score))
+  FDR = p.adjust(p=P_value, method="fdr")
+  
+  return(data.frame(G.Z_socre = Z_score, P_value = P_value, FDR = FDR))
+}
+
+
+
+
+Z.moran.WG = function(X, neighbors, w.mat){
+  
+  neighbors[,2] = 0
+  w.mat[,2] = 0
+  w = w.mat
+  
+  X.bar = mean(X)
+  n = length(X)
+  S0 <- sum(w) 
+  # calculate I first
+  # n is the number of elements 
+  I = (n/S0) * (sum((X-X.bar) * (neighbors-X.bar) * w)/sum((X - X.bar)^2))
+  # so i can get the I value 
+  # next we get  expected I
+  E.I <- -1 / (n - 1)
+  # Now to clculate the variance 
+  #    S1
+  S1 = sum((w + (w))^2)/2
+  #    S2
+  S2 = sum((rowSums(w) + rowSums(w))^2)
+  ### D
+  D = sum((X - X.bar)^4)/(sum((X - X.bar)^2))^2
+  # A, B, C no longer require any loops, so pretty easy 
+  A = n * ( ((n^2 - (3*n) + 3 ) * S1) - (n * S2) + (3 * S0^2) )
+  B = D * ( ((n^2 - n) * S1) - ((2 * n) * S2) + (6 * S0^2) )
+  C = (n - 1) * (n - 2) * (n -3) * S0^2
+  E.I2 <- (A - B) / C
+  # calculate the variance
+  V.I = E.I2 - E.I^2
+  # calculate z.score
+  Z.I <- (I - E.I)/sqrt(V.I)
+  P_value = 2*pnorm(-abs(Z.I))
+  return(c(Moran_I = I, Z_score = Z.I, Var = V.I, P_value = P_value))
+}
+
+# the last one to do will be Global_G
+# annoyingly general G won't seem to show a negative Z score
+# our peak example shows that there is definatly positve levels of clustering but our 
+# trough example does not,
+# for some reason it is too hard to get below the mean 
+# also significance seems really fragile.
+# it might be the way we calculate variance 
+
+# as we increase each X by the same number the varaince gets smaller
+# an interesting result considering we are really looking at this as a ratio
+
+
+General.G <- function(X,w){
+  n = length(X)
+  X.bar = mean(X)
+  w1 <- matrix(1,ncol = n, nrow = n)
+  diag(w1) = 0
+  General_G = sum(outer(X,X)*w)/sum(outer(X,X)*w1)
+  # Expected
+  W = sum(w)
+  E.G <- W/(n*(n-1))
+  
+  #expected G square
+  n.r4 = n * (n-1) * (n-2) * (n-4)
+  
+  # i think
+  S1 = sum((w + t(w))^2)/2
+  # there may be a better way to do this for the genome scale analysis. 
+  # essentially becasue we know we are only doing one dimension
+  S2 = sum((rowSums(w) + colSums(w))^2)
+  
+  
+  # maybe we could adjust the Bs up here
+  
+  B0 = (((n^2) - (3*n) + 3)*S1) - (n * S2) + (3*(W^2))
+  B1 = -( (((n^2) - n) *S1) - ((2*n) * S2) + (3*(W^2))  )
+  B2 = -(  ( 2*n*S1) - ((n + 3) * S2) + (6*(W^2))  )
+  B3 = ((4*(n - 1))*S1) - ((2 * (n +1))* S2) + (8*(W^2))
+  B4 = S1 - S2 + (W^2)
+  
+  B0 = B0*(M.j(X,2)^2)
+  B1 = B1*(M.j(X,4))
+  B2 = B2*(M.j(X,1)^2)*(M.j(X,2))
+  B3 = B3*(M.j(X,1))*(M.j(X,3))
+  B4 = B4*(M.j(X,1)^4)
+  
+  
+  
+  EG.2 <- (1/( (((M.j(X,1)^2)- (M.j(X,2)))^2) * n.r4  )) *(B0 + B1 + B2 + B3 + B4) 
+  
+  V.G <- EG.2 - (E.G^2)
+  
+  
+  General_G.Z = (General_G - E.G)/sqrt(V.G)
+  P_value = 2*pnorm(-abs(General_G.Z))
+  
+  return(c(General_G = General_G, Z_score = General_G.Z, Var = V.G, P_value = P_value))
+  
+  
+}
+
+
+Z.moran = function(X, w){
+  diag(w) <- 0
+  X.bar = mean(X)
+  n = length(X)
+  S0 <- sum(w) 
+  # calculate I first
+  # n is the number of elements 
+  I = (n/S0) * (sum(outer(X - X.bar, X - X.bar) * w)/sum((X - X.bar)^2))
+  # so i can get the I value 
+  # next we get  expected I
+  E.I <- -1 / (n - 1)
+  # Now to clculate the variance 
+  #    S1
+  S1 = sum((w + t(w))^2)/2
+  #    S2
+  S2 = sum((colSums(w) + rowSums(w))^2)
+  ### D
+  D = sum((X - X.bar)^4)/((sum((X - X.bar)^2))^2)
+  # A, B, C no longer require any loops, so pretty easy 
+  A = n * ( (( (n^2) - (3*n) + 3 ) * S1) - (n * S2) + (3 * (S0^2)) )
+  B = D * ( ((n^2 - n) * S1) - ((2 * n) * S2) + (6 * (S0^2)) )
+  C = (n - 1) * (n - 2) * (n -3) * (S0^2)
+  E.I2 <- (A - B) / C
+  # calculate the variance
+  V.I = E.I2 - E.I^2
+  # calculate z.score
+  Z.I <- (I - E.I)/sqrt(V.I)
+  
+  return(c(Moran_I = I, Z_score = Z.I))
+}
+
+
+M.j <- function(X,j){
+  return(sum(X^j))
+}
+
+
+
+
+
+# biggest challange right now is to get the outer of the X vaector
+
+sample.space.Gen_G <- function(X){
+  X <- as.numeric(X)
+  A = NULL
+  for(i in 1:(length(X) -1)){
+    A <- c(A,X[i]*(sum(X[(i+1):length(X)])))
+  }
+  return(sum(A,na.rm=T)*2)
+}
+
+
+General.G.WG <- function(X,neighbors,w.mat){
+  
+  neighbors[,2] = 0
+  w.mat[,2] = 0
+  w = w.mat
+
+  
+  n = length(X)
+  X.bar = mean(X)
+    
+  General_G = sum((X) * (neighbors) * w)/sample.space.Gen_G(X)
+  # Expected
+  W = sum(w)
+  E.G <- W/(n*(n-1))
+  #expected G square
+  n.r4 = n * (n-1) * (n-2) * (n-4)
+  S1 = sum((w + (w))^2)/2
+  S2 = sum((rowSums(w) + rowSums(w))^2)
+  # maybe we could adjust the Bs up here
+  B0 = (((n^2) - (3*n) + 3)*S1) - (n * S2) + (3*(W^2))
+  B1 = -( (((n^2) - n) *S1) - ((2*n) * S2) + (3*(W^2))  )
+  B2 = -(  ( 2*n*S1) - ((n + 3) * S2) + (6*(W^2))  )
+  B3 = ((4*(n - 1))*S1) - ((2 * (n +1))* S2) + (8*(W^2))
+  B4 = S1 - S2 + (W^2)
+  B0 = B0*(M.j(X,2)^2)
+  B1 = B1*(M.j(X,4))
+  B2 = B2*(M.j(X,1)^2)*(M.j(X,2))
+  B3 = B3*(M.j(X,1))*(M.j(X,3))
+  B4 = B4*(M.j(X,1)^4)
+  EG.2 <- (B0 + B1 + B2 + B3 + B4)/ ( (((M.j(X,1)^2)- (M.j(X,2)))^2) * n.r4  )
+  V.G <- EG.2 - (E.G^2)
+  General_G.Z = (General_G - E.G)/sqrt(V.G)
+  P_value = 2*pnorm(-abs(General_G.Z))
+  return(c(General_G = General_G, Z_score = General_G.Z, Var = V.G, P_value = P_value))  
+}
+
+
+
+region.finder <- function(s1,feature,SCALE = TRUE){
+  Group = rep(0, dim(s1)[1])
+  group = 0
+  for(i in seq(dim(s1)[1])){
+    if(all(s1$start[i] != s1$end[i-1]+1)){
+      group = group+1
+    }
+    Group[i] <- group
+  }
+  
+  # Now classify bins based the local variance of the scaled_r score
+  
+  if(SCALE == TRUE){
+    feature == scale(feature)
+  }
+  
+  Wiggle <- NULL
+  for(z in seq(group)){
+    scale_r <- feature[Group == z] 
+    zero <- rep(0, length(scale_r))
+    wiggle <- data.frame(scale_r_score = zero, mean = zero , bottom = zero , top = zero)
+    for(i in seq(along=scale_r)){	
+      if((i == length(scale_r)) & (i == 1)){
+        a <- mean(scale_r[i])
+        s <- sd(s1$archi.cor.scale)
+        n <- 1
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+      }else if(i == 1){
+        a <- mean(scale_r[i:(i+1)])
+        s <- sd(scale_r[i:(i+1)])
+        n <- 2
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+      }else if(i == length(scale_r)){
+        a <- mean(scale_r[(i-1):i])
+        s <- sd(scale_r[(i-1):i])
+        n <- 2
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+      }else if(i == 2){
+        a <- mean(scale_r[(i-1):(i+1)])
+        s <- sd(scale_r[(i-1):(i+1)])
+        n <- 3
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+      }else if(i == length(scale_r) - 1){
+        a <- mean(scale_r[(i-1):(i+1)])
+        s <- sd(scale_r[(i-1):(i+1)])
+        n <- 3
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+      }else{
+        a <- mean(scale_r[(i-2):(i+2)])
+        s <- sd(scale_r[(i-2):(i+2)])
+        n <- 5
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+      }
+      wiggle$scale_r_score[i] <- scale_r[i]
+      wiggle$mean[i] <- a 
+      wiggle$bottom[i] <- left		
+      wiggle$top[i] <- right
+    }
+    Wiggle <- rbind(Wiggle,wiggle )
+  }
+  
+  
+  Wiggle$r_class <- rep("M", dim(Wiggle)[1])
+  Wiggle$r_class[Wiggle$bottom > 0] <- "H"
+  Wiggle$r_class[Wiggle$top < 0] <- "L"
+  
+  return(Wiggle)
+}
+
+
+
+# (X - mean) / sd
+
+region.finder <- function(s1,feature,SCALE = TRUE){
+  Group = rep(0, dim(s1)[1])
+  group = 0
+  for(i in seq(dim(s1)[1])){
+    if(all(s1$start[i] != s1$end[i-1]+1)){
+      group = group+1
+    }
+    Group[i] <- group
+  }
+  
+  # Now classify bins based the local variance of the scaled_r score
+  
+  if(SCALE == TRUE){
+    feature == scale(feature)
+  }
+  
+  Wiggle <- NULL
+  for(z in seq(group)){
+    scale_r <- feature[Group == z] 
+    zero <- rep(0, length(scale_r))
+    wiggle <- data.frame(scale_r_score = zero, mean = zero , bottom = zero , top = zero)
+    for(i in seq(along=scale_r)){  
+      if((i == length(scale_r)) & (i == 1)){
+        a <- mean(scale_r[i])
+        s <- sd(s1$archi.cor.scale)
+        n <- 1
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+        Z.score = a/s
+      }else if(i == 1){
+        a <- mean(scale_r[i:(i+1)])
+        s <- sd(scale_r[i:(i+1)])
+        n <- 2
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+        Z.score = a/s
+      }else if(i == length(scale_r)){
+        a <- mean(scale_r[(i-1):i])
+        s <- sd(scale_r[(i-1):i])
+        n <- 2
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+        Z.score = a/s
+      }else if(i == 2){
+        a <- mean(scale_r[(i-1):(i+1)])
+        s <- sd(scale_r[(i-1):(i+1)])
+        n <- 3
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+        Z.score = a/s
+      }else if(i == length(scale_r) - 1){
+        a <- mean(scale_r[(i-1):(i+1)])
+        s <- sd(scale_r[(i-1):(i+1)])
+        n <- 3
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+        Z.score = a/s
+      }else{
+        a <- mean(scale_r[(i-2):(i+2)])
+        s <- sd(scale_r[(i-2):(i+2)])
+        n <- 5
+        error <- qnorm(0.975)*s/sqrt(n)
+        left <- a-error
+        right <- a+error
+        Z.score = a/s
+      }
+      wiggle$scale_r_score[i] <- scale_r[i]
+      wiggle$mean[i] <- a 
+      wiggle$bottom[i] <- left		
+      wiggle$top[i] <- right
+      wiggle$Z_score[i] <- Z.score
+      wiggle$sd[i] <- s
+    }
+    Wiggle <- rbind(Wiggle,wiggle )
+  }
+  
+  Wiggle <- data.frame(Wiggle)
+  Wiggle$P_val = 2*pnorm(-abs(Wiggle$Z_score))
+  Wiggle$FDR = p.adjust(Wiggle$P_val,"fdr")
+  
+  Wiggle$r_class.fdr <- rep("M", dim(Wiggle)[1])
+  Wiggle$r_class.fdr[ Wiggle$Z_score > 0 & Wiggle$FDR < 0.05] <- "H"
+  Wiggle$r_class.fdr[Wiggle$Z_score < 0 & Wiggle$FDR < 0.05] <- "L"
+  
+  
+  Wiggle$r_class.ci <- rep("M", dim(Wiggle)[1])
+  Wiggle$r_class.ci[Wiggle$bottom > 0] <- "H"
+  Wiggle$r_class.ci[Wiggle$top < 0] <- "L"
+  
+  return(Wiggle)
+}
+
+#seems i found the bug
+#we were getting the score for the whole group
+
+
+
+
+### this function isn't working
+# we are getting diffent answears if we feed it different bin sizes
+binned.genome.reader <- function(genome = "hg19", bin.size = c(1500000), keep.rate = .9){
+  
+  # getting chrom info 
+  web <- paste("http://hgdownload.soe.ucsc.edu/goldenPath/", genome, "/database/chromInfo.txt.gz", sep = "")
+  con <- gzcon(url(web))
+  txt <- readLines(con)
+  chrom_info <- read.delim(textConnection(txt), header = FALSE)
+  
+  
+  ses <- browserSession("UCSC")
+  genome(ses) <- genome
+  
+  data.types <- c("gaps")
+  track.name <- c("gap")
+  table.name <- c("gap")
+  
+  
+  for(i in 1:length(data.types)){
+    dat <- getTable(
+      ucscTableQuery(
+        ses, 
+        track = track.name[i],
+        table = table.name[i]
+      )
+    )
+    assign(data.types[i], dat)    		
+  }
+  
+  
+  
+  gaps.gr <- GRanges(seqnames = Rle(gaps$chrom),
+                     ranges = IRanges(start = gaps$chromStart, end = gaps$chromEnd)
+  )		 
+  
+  Final <- NULL
+  for(z in 1:length(bin.size)){
+    chrom_info1 <- chrom_info[chrom_info[,2] > bin.size[z],]
+    
+    bins <- NULL
+    for( i in 1:dim(chrom_info1)[1]){
+      start <- seq(from = 1, to = chrom_info1[i,2], by = bin.size[z])
+      end <- c(seq(from = bin.size[z], to = chrom_info1[i,2], by = bin.size[z]), chrom_info1[i,2])
+      pre.bin <- data.frame(chr = chrom_info1[i,1], start = start, end = end)
+      bins <- rbind(bins, pre.bin)
+    }
+    
+    bins$Known <- bins$end - bins$start + 1
+    bins.gr <- GRanges(seqnames = Rle(bins$chr), 
+                       ranges = IRanges(start = bins$start, end = bins$end - 1)
+    )
+    
+    gap.int.gr <- intersect(gaps.gr, bins.gr)	   
+    gap.bin.ol <- as.matrix(
+      findOverlaps(bins.gr, gap.int.gr)
+    )	   
+    gap.size <- data.frame(bin = gap.bin.ol[,1], width = width(gap.int.gr[gap.bin.ol[,2]]))
+    gap.size.bin <- aggregate(gap.size[,2],list(bin = gap.size$bin), sum)
+    bins$Known[gap.size.bin$bin] <- bins$Known[gap.size.bin$bin] - gap.size.bin$x + 1
+    # so now we have all the known bp for bins for a genome of any bin size
+    bins <- bins[bins$Known >= keep.rate*bin.size[z],1:4]
+    rownames(bins) <- 1:nrow(bins)
+    Final <- c(Final, list(bins))
+  }
+  names(Final) <- paste(genome,"bin.size", bin.size, sep = "_")
+  return(Final)
+  
+  
+}
+
+
+
+
+
+SquareNBqueen <- function(M, cbound, rbound, NBdist) {
+  
+  diag <- c(1:ncol(M) * ncol(M)) - ncol(M) + 1:nrow(M)
+  diag.all <- diag
+  for(i in 1:NBdist){
+    diag.all <- c(diag.all, (diag + i)[1:(length(diag) - i)], (diag - i)[(1 + i):length(diag)])
+  }
+  
+  zeros = NULL
+  for(cut in 1:length(cbound)){
+    out = NULL
+    for(i in 1 : (nrow(M) - cbound[cut])){
+      out <- c(out, c( (1:nrow(M)* nrow(M)) - nrow(M) + cbound[cut] + i , ((cbound[cut] + i) * nrow(M)) - nrow(M) + 1:nrow(M)))
+    }
+    out <- out[!( out %in% out[duplicated(out)] )]
+    zeros <- c(zeros, out)
+  }
+  zeros.col <- unique(zeros)
+  
+  min.module <- diag.all[!(diag.all %in% zeros.col)]
+  
+  # get our max module immage and plot it out here 
+  zeros = NULL
+  for(cut in 1:length(rbound)){
+    out = NULL
+    for(i in 1 : (nrow(M) - rbound[cut])){
+      out <- c(out, c( (1:nrow(M) * nrow(M)) - nrow(M) + rbound[cut] + i , ((rbound[cut] + i) * nrow(M)) - nrow(M) + 1:nrow(M)))
+    }
+    out <- out[!( out %in% out[duplicated(out)] )]
+    zeros <- c(zeros, out)
+  }
+  zeros.row <- unique(zeros)
+  max.module <- diag.all[!(diag.all %in% zeros.row)]
+  
+  # we just need to caculte the factors to add on to place them in the big matrix
+  # we need the row column info to place them out 
+  
+  rows = matrix(data=rep(1:nrow(M), nrow(M)), nrow = nrow(M), ncol = ncol(M))
+  cols = matrix(data=rep(1:nrow(M), nrow(M)), nrow = nrow(M), ncol = ncol(M), byrow=T)
+  
+  rows.max <- rows[max.module]
+  cols.max <- cols[max.module]
+  rows.min <- rows[min.module]
+  cols.min <- cols[min.module]
+  
+  w.mat <- matrix(data = 0, nrow=length(M), ncol = length(M))
+  
+  for(i in 1:length(max.module)){
+    w.mat[(cols.min * length(M) - length(M) + rows.min)  +   ((cols.max[i] * (length(M) * nrow(M))) - (length(M) * nrow(M)) + rows.max[i] * nrow(M) - nrow(M))] <- 1
+  }
+  
+  return(w.mat)
+}
+
+
+
+geneModelplot <- function(chr.choice = NULL, pos.coor = NULL, neg.coor = NULL, intron.width = NULL,
+                          refgene. = NULL){
+  
+  refgene. = refgene.[refgene.[,3] == chr.choice,]
+  
+  Estart <- strsplit(x=as.character(refgene.[,10]),split=",")
+  Eend <- strsplit(x=as.character(refgene.[,10]),split=",")
+  Istart <- Eend
+  Iend <- Estart
+  for(i in 1:nrow(refgene.)){
+    if(refgene[i,9] > 1){
+      Istart[[i]] = as.numeric(Istart[[i]][1:(length(Istart[[i]])-1)])
+      Iend[[i]] = as.numeric(Iend[[i]][2:(length(Iend[[i]]))])
+    }else{
+      Istart[[i]] = as.numeric(Estart[[i]])
+      Iend[[i]] = as.numeric(Eend[[i]])
+    }
+    Estart[[i]] = as.numeric(Estart[[i]])
+    Eend[[i]] = as.numeric(Eend[[i]])
+  }
+  
+  
+  Exons.start.pos <- Estart[refgene.[,4] == "+"]
+  Exons.start.neg <- Estart[refgene.[,4] == "-"]
+  Exons.end.pos <- Eend[refgene.[,4] == "+"]
+  Exons.end.neg <- Eend[refgene.[,4] == "-"]
+  Introns.start.pos <- Istart[refgene.[,4] == "+"]
+  Introns.start.neg <- Istart[refgene.[,4] == "-"]
+  Introns.end.pos <- Iend[refgene.[,4] == "+"]
+  Introns.end.neg <- Iend[refgene.[,4] == "-"]
+  
+  
+  # exon rect
+  for(i in 1:length(Exons.start.pos)){
+    for(j in 1:length(Exons.start.pos[[i]])){
+      rect(xleft=Exons.start.pos[[i]][j], xright=Exons.start.pos[[i]][j],
+           ytop=pos.coor+intron.width, ybottom=pos.coor-intron.width,
+           density=-1,col = 1)
+    }
+  }
+  for(i in 1:length(Exons.start.neg)){
+    for(j in 1:length(Exons.start.neg[[i]])){
+      rect(xleft=Exons.start.neg[[i]][j], xright=Exons.start.neg[[i]][j],
+           ytop=neg.coor+intron.width, ybottom=neg.coor-intron.width,
+           density=-1,col = 1)
+    }
+  }
+  
+  ### intron
+  for(i in 1:length(Introns.start.pos)){
+    for(j in 1:length(Introns.start.pos[[i]])){
+      rect(xleft=Introns.start.pos[[i]][j], xright=Introns.start.pos[[i]][j],
+           ytop=pos.coor+(intron.width/2), ybottom=pos.coor-(intron.width/2),
+           density=-1,col = 1)
+    }
+  }
+  for(i in 1:length(Introns.start.neg)){
+    for(j in 1:length(Introns.start.neg[[i]])){
+      rect(xleft=Introns.start.neg[[i]][j], xright=Introns.start.neg[[i]][j],
+           ytop=neg.coor+(intron.width/2), ybottom=neg.coor-(intron.width/2),
+           density=-1,col = 1)
+    }
+  }
+}
+
+
+
+reuben.biplot <- function (x, y, var.axes = TRUE, col, cex = rep(par("cex"), 2), 
+                           xlabs = NULL, ylabs = NULL, expand = 1, xlim = NULL, ylim = NULL, 
+                           arrow.len = 0.1, main = NULL, sub = NULL, xlab = NULL, ylab = NULL, x.col = 1, y.col = 2,text.col = 1,
+                           text.cex = 1,arrow.lwd = 1, ...) {
+  n <- nrow(x)
+  p <- nrow(y)
+  if (missing(xlabs)) {
+    xlabs <- dimnames(x)[[1L]]
+    if (is.null(xlabs)) 
+      xlabs <- 1L:n
+  }
+  xlabs <- as.character(xlabs)
+  dimnames(x) <- list(xlabs, dimnames(x)[[2L]])
+  if (missing(ylabs)) {
+    ylabs <- dimnames(y)[[1L]]
+    if (is.null(ylabs)) 
+      ylabs <- paste("Var", 1L:p)
+  }
+  ylabs <- as.character(ylabs)
+  dimnames(y) <- list(ylabs, dimnames(y)[[2L]])
+  if (length(cex) == 1L) 
+    cex <- c(cex, cex)
+  if (missing(col)) {
+    col <- par("col")
+    if (!is.numeric(col)) 
+      col <- match(col, palette(), nomatch = 1L)
+    col <- c(col, col + 1L)
+  }
+  else if (length(col) == 1L) 
+    col <- c(col, col)
+  unsigned.range <- function(x) c(-abs(min(x, na.rm = TRUE)), 
+                                  abs(max(x, na.rm = TRUE)))
+  rangx1 <- unsigned.range(x[, 1L])
+  rangx2 <- unsigned.range(x[, 2L])
+  rangy1 <- unsigned.range(y[, 1L])
+  rangy2 <- unsigned.range(y[, 2L])
+  if (missing(xlim) && missing(ylim)) 
+    xlim <- ylim <- rangx1 <- rangx2 <- range(rangx1, rangx2)
+  else if (missing(xlim)) 
+    xlim <- rangx1
+  else if (missing(ylim)) 
+    ylim <- rangx2
+  ratio <- max(rangy1/rangx1, rangy2/rangx2)/expand
+  on.exit(par(op))
+  op <- par(pty = "s")
+  if (!is.null(main)) 
+    op <- c(op, par(mar = par("mar") + c(0, 0, 1, 0)))
+  plot(
+    x, 
+    type = "p", 
+    xlim = xlim, 
+    ylim = ylim, 
+    col = x.col, 
+    xlab = xlab, 
+    ylab = ylab, 
+    sub = sub, 
+    main = main,
+    pch = 16,
+    cex = cex, 
+    ...)
+  #    text(
+  #      x, 
+  #    	xlabs, 
+  #    	cex = cex[1L], 
+  #    	col = x.col, 
+  #    	...)
+  par(new = TRUE)
+  dev.hold()
+  on.exit(dev.flush(), add = TRUE)
+  plot(
+    y, 
+    axes = FALSE, 
+    type = "n", 
+    xlim = xlim * ratio, 
+    ylim = ylim * ratio, 
+    xlab = "", 
+    ylab = "", 
+    col = y.col, 
+    ...)
+  axis(3, col = col[2L], ...)
+  axis(4, col = col[2L], ...)
+  box(col = col[1L])
+  text(y, 
+       labels = ylabs, 
+       cex = text.cex, 
+       col = text.col, 
+       ...)
+  if (var.axes) 
+    arrows(0, 0, y[, 1L] * 0.8, y[, 2L] * 0.8, col = y.col, 
+           length = arrow.len,
+           lwd = arrow.lwd)
+  invisible()
+}
+
+
+
+resetPar <- function() {
+  dev.new()
+  op <- par(no.readonly = TRUE)
+  dev.off()
+  op
+}
+
+
+binSort <- function(rep, bins, TE.names){
+  bin.gr <- GRanges(seqnames=Rle(bins$chr),
+                    ranges = IRanges(start=bins$start, end = bins$end - 1))
+  
+  for(te in 1:length(TE.names)){
+    te.gr <- rep[[TE.names[te]]]
+    GR <- GRanges(seqnames = Rle(te.gr$genoName),
+                  ranges = IRanges(start = te.gr$genoStart, end = te.gr$genoEnd))
+    
+    # here we can do repeat coverage 
+    OL <- intersect(x=bin.gr, y=GR)
+    OL.f <- as.matrix(findOverlaps(bin.gr,OL))
+    
+    OL.agg <- aggregate( x= width(OL[OL.f[,2]]) , by= list(OL.f[,1]), FUN=sum)
+    
+    bins[OL.agg[,1],TE.names[te]] <- OL.agg[,2]
+    bins[is.na(bins[,TE.names[te]]),TE.names[te]] <- 0
+  }
+  
+  # it might be a good idea to make sure to sort out the seqnames issue first
+  bin.counts <- bins
+  bin.rates <- bins
+  for(i in 1:length(TE.names)){
+    bin.rates[,TE.names[i]] <- (bin.rates[,TE.names[i]] * 10000) / bin.rates$Known
+  }
+  
+  return(list(counts = bin.counts, rates = bin.rates))
+}
+
+
+
+
+removeRepAlign <- function(refSpecGenome, queSpecGenome, refSpec, queSpec){
+  
+  web <- paste("http://hgdownload.soe.ucsc.edu/goldenPath/", queSpecGenome, "/database/chromInfo.txt.gz", sep = "")
+  con <- gzcon(url(web))
+  txt <- readLines(con)
+  chrom_info <- read.delim(textConnection(txt), header = FALSE)
+  chrom_infoQue <- chrom_info[,2]
+  names(chrom_infoQue) <- chrom_info[,1]
+  
+  
+  align <- read.table(paste("~/Desktop/Domain_manuscript/Data/usable_alignmnet/",refSpecGenome,".",queSpecGenome,".axt.txt", sep = ""), 
+                      colClasses= c("character", "character", "numeric", "numeric", "character", "numeric", "numeric", "character", "numeric"))
+  colnames(align) <- c("Alignment_number", "chrRef", "startRef", "endRef", "chrQue", "startQue", "endQue", "strand", "blastzScore")
+  
+  # remove unplaced chromosomes
+  if(length(grep("_", align$chrQue)) > 0){
+    align <- align[-(grep("_", align$chrQue)),]
+  }
+  
+  if(length(grep("_", align$chrRef)) > 0){
+    align <- align[-(grep("_", align$chrRef)),]
+  }
+  # neg strand converiosn 
+  
+  align[align$strand == "-","startQue"] <-  chrom_infoQue[align[align$strand == "-","chrQue"]] - align[align$strand == "-","startQue"]
+  tmp <-  chrom_infoQue[align[align$strand == "-","chrQue"]] - align[align$strand == "-","endQue"]
+  align[align$strand == "-","endQue"] <- align[align$strand == "-","startQue"]
+  align[align$strand == "-","startQue"] <- tmp
+  
+  # remove all multi mapping regions
+  Que.mm.gr <- GRanges(seqnames=Rle(align$chrQue), 
+                       ranges=IRanges(start=align$startQue, end = align$endQue)
+  )
+  mm.ol <- as.matrix(findOverlaps(Que.mm.gr))
+  # perform self overlaps to identify if regions overlap themselves
+  multiQue <- as.matrix(findOverlaps(Que.mm.gr, Que.mm.gr))
+  # however species 2 does
+  # therefore regions in species 1 are mapping to the same place in species two
+  # non multis
+  singleQue <- multiQue[!(multiQue[,1] %in% unique(multiQue[duplicated(multiQue[,1]),1])),1]
+  align <- align[singleQue,]
+  rownames(align) <- 1:nrow(align)
+  
+  refRep <- NULL
+  refRep_list <- get(paste(refSpec, "_repInfo", sep = ""))
+  for(i in 1:length(refRep_list)){
+    refRep <- rbind(refRep, refRep_list[[i]])
+  }
+  refRep.gr <- GRanges(seqnames=Rle(refRep$genoName),
+                       ranges = IRanges(start=refRep$genoStart, end = refRep$genoEnd)
+  )
+  refRep.gr <- reduce(refRep.gr)
+  
+  aliRef.gr <- GRanges(seqnames=Rle(align$chrRef),
+                       ranges = IRanges(start=align$startRef, end=align$endRef- 1)
+  )
+  
+  if(length(aliRef.gr) == length(reduce(aliRef.gr))){
+    print("no overlapping alignment fragments")
+  }
+  
+  # how do we translate coordinates 
+  sd <- setdiff(aliRef.gr, refRep.gr)
+  ol.sd <- as.matrix(findOverlaps(aliRef.gr, sd))
+  comp <- data.frame(align[ol.sd[,1],], as.data.frame(sd)[ol.sd[,2],])
+  
+  # make sure all our broken fragments fit within the correct area
+  if(!all(comp$start >= comp$startRef)){
+    stop("New ref start alignments are outside of old ones")
+  }
+  if(!all(comp$end <= comp$endRef)){
+    stop("New end start alignments are outside of old ones")
+  }
+  # the difference between new start and old start as a portion of the length 
+  comp$newStartQue <- round(((comp$start - comp$startRef)/(comp$endRef - comp$startRef + 1)) * (comp$endQue - comp$startQue + 1)) + comp$startQue
+  comp$newEndQue <- round(((comp$end - comp$endRef)/(comp$endRef - comp$startRef + 1)) * (comp$endQue - comp$startQue + 1)) + comp$endQue
+  
+  
+  
+  # there is an inequality between the lengths of the aligning fragments
+  # we are remving parts of the aligning fragments, we awant to make sure we do not disturb these inequalitites. 
+  
+  # the fraction that has been removed by repeats should be equall across both datasets
+  print("proportion ovrerlapping repeats in Ref")
+  print((sum(as.numeric(comp$endRef-comp$startRef)) - 
+           sum(as.numeric(comp$end-comp$start))) / 
+          sum(as.numeric(comp$endRef-comp$startRef)))
+  
+  print("proportion overlapping repeats in Que")
+  print((sum(as.numeric(comp$endQue-comp$startQue)) - 
+           sum(as.numeric(comp$newEndQue-comp$newStartQue))) / 
+          sum(as.numeric(comp$endQue-comp$startQue)))
+  
+  print("cor between repeat potions removed from alignmnets")
+  print(cor(((comp$endRef-comp$startRef) - (comp$end-comp$start)) / (comp$endRef-comp$startRef), 
+            ((comp$endQue-comp$startQue) - (comp$newEndQue-comp$newStartQue)) / (comp$endQue-comp$startQue)))
+  
+  ## fractions maintained
+  new.align <- comp[,c("Alignment_number", "chrRef", "start", "end", "chrQue", "newStartQue", "newEndQue", "strand", "blastzScore")]
+  colnames(new.align) <- colnames(align)
+  
+  new.align <- new.align[new.align$endRef - new.align$startRef > 0,]
+  new.align <- new.align[new.align$endQue - new.align$startQue > 0,]
+  rownames(new.align) <- 1:nrow(new.align)
+  
+  queRep <- NULL
+  queRep_list <- get(paste(queSpec, "_repInfo", sep = ""))
+  for(i in 1:length(queRep_list)){
+    queRep <- rbind(queRep, queRep_list[[i]])
+  }
+  queRep.gr <- GRanges(seqnames=Rle(queRep$genoName),
+                       ranges = IRanges(start=queRep$genoStart, end = queRep$genoEnd)
+  )
+  queRep.gr <- reduce(queRep.gr)
+  aliQue.gr <- GRanges(seqnames=Rle(new.align$chrQue),
+                       ranges = IRanges(start=new.align$startQue, end=new.align$endQue - 1)
+  )
+  
+  if(length(reduce(aliQue.gr)) == length(aliQue.gr)){
+    print("no overlapping alignmnets")
+  }
+  # how do we translate coordinates 
+  sd <- setdiff(aliQue.gr, queRep.gr)
+  ol.sd <- as.matrix(findOverlaps(aliQue.gr, sd))
+  comp <- data.frame(new.align[ol.sd[,1],], as.data.frame(sd)[ol.sd[,2],])
+  if(!all(comp$start >= comp$startQue)){
+    stop("New que start alignments are outside of old ones")
+  }
+  if(!all(comp$end <= comp$endQue)){
+    stop("New que end alignments are outside of old ones")
+  }
+  # the difference between new start and old start as a portion of the length 
+  comp$newStartRef <- round(((comp$start - comp$startQue)/(comp$endQue - comp$startQue + 1)) * (comp$endRef - comp$startRef + 1)) + comp$startRef
+  comp$newEndRef <- round(((comp$end - comp$endQue)/(comp$endQue - comp$startQue + 1)) * (comp$endRef - comp$startRef + 1)) + comp$endRef
+  
+  print("fraction of repeats removed from Que")
+  print(
+    (sum(as.numeric(comp$endQue-comp$startQue)) - sum(as.numeric(comp$end-comp$start))) / sum(as.numeric(comp$endQue-comp$startQue))
+  )
+  
+  print("fraction of repeats removed from Ref")
+  print(
+    (sum(as.numeric(comp$endRef-comp$startRef)) - sum(as.numeric(comp$newEndRef-comp$newStartRef))) / sum(as.numeric(comp$endRef-comp$startRef))
+  )
+  
+  print("corelation of fractions of repeats removed")
+  print(
+    cor((((comp$endRef-comp$startRef) - (comp$newEndRef-comp$newStartRef)) / (comp$endRef-comp$startRef)), (((comp$endQue-comp$startQue) - (comp$end-comp$start)) / (comp$endQue-comp$startQue)))
+  )
+  # amybe need to do some analysis on the residual fractions left over
+  
+  #res_frac <- (((comp$endRef-comp$startRef) - (comp$newEndRef-comp$newStartRef)) / (comp$endRef-comp$startRef)) -  (((comp$endQue-comp$startQue) - (comp$end-comp$start)) / (comp$endQue-comp$startQue))
+  
+  # it tends to be small things that have the biggest fractional differences
+  # maybe if we remove all our zeroed alignmnets we will be done 
+  
+  new.new.align <- comp[,c("Alignment_number", "chrRef", "newStartRef", "newEndRef", "chrQue", "start", "end", "strand", "blastzScore")]
+  colnames(new.new.align) <- colnames(align)
+  
+  new.new.align <- new.new.align[new.new.align$endRef - new.new.align$startRef > 0,]
+  new.new.align <- new.new.align[new.new.align$endQue - new.new.align$startQue > 0,]
+  rownames(new.new.align) <- 1:nrow(new.new.align)
+  
+  return(new.new.align)
+}
+
+
+
+isolateBinAlign <- function(align, refSpec, queSpec){
+  refPCA <- get(paste(refSpec, "PCA", sep = ""))
+  refBin <- refPCA$binInfo
+  refBin.gr <- GRanges(seqnames=Rle(refBin$chr), 
+                       ranges=IRanges(start=refBin$start, end = refBin$end -1 )
+  )
+  
+  refAli.gr <- GRanges(seqnames=Rle(align$chrRef),
+                       ranges = IRanges(start=align$startRef, end = align$endRef)
+  )
+  
+  intRef <- intersect(refBin.gr, refAli.gr)
+  olRef <- as.matrix(findOverlaps(refAli.gr, intRef)) 
+  comp <- data.frame(align[olRef[,1], ], as.data.frame(intRef)[olRef[,2],])
+  
+  # make sure all our broken fragments fit within the correct area
+  if(!all(comp$start >= comp$startRef)){
+    stop("New ref start alignments are outside of old ones")
+  }
+  if(!all(comp$end <= comp$endRef)){
+    stop("New ref end alignments are outside of old ones")
+  }
+  # the difference between new start and old start as a portion of the length 
+  comp$newStartQue <- round(((comp$start - comp$startRef)/(comp$endRef - comp$startRef + 1)) * (comp$endQue - comp$startQue + 1)) + comp$startQue
+  comp$newEndQue <- round(((comp$end - comp$endRef)/(comp$endRef - comp$startRef + 1)) * (comp$endQue - comp$startQue + 1)) + comp$endQue
+  
+  # it looks 
+  
+  print("proportion of Ref bins outside alignmnets")
+  print((sum(as.numeric(comp$endRef-comp$startRef)) - 
+           sum(as.numeric(comp$end-comp$start))) / 
+          sum(as.numeric(comp$endRef-comp$startRef)))
+  
+  print("proportion of Que bins outside alignmnets")
+  print((sum(as.numeric(comp$endQue-comp$startQue)) - 
+           sum(as.numeric(comp$newEndQue-comp$newStartQue))) / 
+          sum(as.numeric(comp$endQue-comp$startQue)))
+  
+  print("cor between repeat potions removed from alignmnets")
+  print(cor(((comp$endRef-comp$startRef) - (comp$end-comp$start)) / (comp$endRef-comp$startRef), 
+            ((comp$endQue-comp$startQue) - (comp$newEndQue-comp$newStartQue)) / (comp$endQue-comp$startQue)))
+  
+  ## fractions maintained
+  new.align <- comp[,c("Alignment_number", "chrRef", "start", "end", "chrQue", "newStartQue", "newEndQue", "strand", "blastzScore")]
+  colnames(new.align) <- colnames(align)
+  
+  ####
+  #
+  #
+  #
+  
+  
+  quePCA <- get(paste(queSpec, "PCA", sep = ""))
+  queBin <- quePCA$binInfo
+  queBin.gr <- GRanges(seqnames=Rle(queBin$chr), 
+                       ranges=IRanges(start=queBin$start, end = queBin$end -1 )
+  )
+  
+  queAli.gr <- GRanges(seqnames=Rle(new.align$chrQue),
+                       ranges = IRanges(start=new.align$startQue, end = new.align$endQue - 1)
+  )
+  
+  intQue <- intersect(queBin.gr, queAli.gr)
+  olQue <- as.matrix(findOverlaps(queAli.gr, intQue)) 
+  comp <- data.frame(new.align[olQue[,1], ], as.data.frame(intQue)[olQue[,2],])
+  
+  if(!all(comp$start >= comp$startQue)){
+    stop("New que start alignments are outside of old ones")
+  }
+  if(!all(comp$end <= comp$endQue)){
+    stop("New que end alignments are outside of old ones")
+  }
+  
+  # the difference between new start and old start as a portion of the length 
+  comp$newStartRef <- round(((comp$start - comp$startQue)/(comp$endQue - comp$startQue + 1)) * (comp$endRef - comp$startRef + 1)) + comp$startRef
+  comp$newEndRef <- round(((comp$end - comp$endQue)/(comp$endQue - comp$startQue + 1)) * (comp$endRef - comp$startRef + 1)) + comp$endRef
+  
+  print("fraction of repeats removed from Que")
+  print(
+    (sum(as.numeric(comp$endQue-comp$startQue)) - sum(as.numeric(comp$end-comp$start))) / sum(as.numeric(comp$endQue-comp$startQue))
+  )
+  
+  print("fraction of repeats removed from Ref")
+  print(
+    (sum(as.numeric(comp$endRef-comp$startRef)) - sum(as.numeric(comp$newEndRef-comp$newStartRef))) / sum(as.numeric(comp$endRef-comp$startRef))
+  )
+  
+  print("corelation of fractions of repeats removed")
+  print(
+    cor((((comp$endRef-comp$startRef) - (comp$newEndRef-comp$newStartRef)) / (comp$endRef-comp$startRef)), (((comp$endQue-comp$startQue) - (comp$end-comp$start)) / (comp$endQue-comp$startQue)))
+  )
+  
+  
+  # so this will find perfectly overlapping fragments between the bins and the alignmnets
+  
+  new.new.align <- comp[,c("Alignment_number", "chrRef", "newStartRef", "newEndRef", "chrQue", "start", "end", "strand", "blastzScore")]
+  colnames(new.new.align) <- colnames(align)
+  
+  new.new.align <- new.new.align[new.new.align$endRef - new.new.align$startRef > 0,]
+  new.new.align <- new.new.align[new.new.align$endQue - new.new.align$startQue > 0,]
+  rownames(new.new.align) <- 1:nrow(new.new.align)
+  
+  return(new.new.align)
+  
+}
+
+
+buildBinMap <- function(align, refSpec, queSpec){
+  refPCA <- get(paste(refSpec, "PCA", sep = ""))
+  refBin <- refPCA$binInfo
+  refBin.gr <- GRanges(seqnames=Rle(refBin$chr), 
+                       ranges=IRanges(start=refBin$start, end = refBin$end -1 )
+  )
+  refAli.gr <- GRanges(seqnames=Rle(align$chrRef),
+                       ranges = IRanges(start=align$startRef, end = align$endRef -1)
+  )
+  refOL <- as.matrix(findOverlaps(refBin.gr, refAli.gr))
+  if(nrow(refOL) == nrow(align)){
+    print("no overlapping sequence")
+  }
+  
+  quePCA <- get(paste(queSpec, "PCA", sep = ""))
+  queBin <- quePCA$binInfo
+  queBin.gr <- GRanges(seqnames=Rle(queBin$chr), 
+                       ranges=IRanges(start=queBin$start, end = queBin$end -1 )
+  )
+  queAli.gr <- GRanges(seqnames=Rle(align$chrQue),
+                       ranges = IRanges(start=align$startQue, end = align$endQue - 1)
+  )
+  queOL <- as.matrix(findOverlaps(queBin.gr, queAli.gr))
+  if(nrow(queOL) == nrow(align)){
+    print("no overlapping sequence")
+  }
+  
+  mergeAlignBins <- merge(refOL, queOL, by = 2)
+  colnames(mergeAlignBins) <- c("alignNo", "refNo", "queNo")
+  mergeAlignBins$alignGroup <- as.factor(paste(mergeAlignBins$refNo, mergeAlignBins$queNo, sep = "_"))
+  nrow(mergeAlignBins) == nrow(align)
+  
+  # all the information is there, just need to sum it up 
+  aggAlignRef <- aggregate(x=align$endRef[mergeAlignBins$alignNo] - align$startRef[mergeAlignBins$alignNo] + 1, by=list(mergeAlignBins$alignGroup), FUN=sum)
+  colnames(aggAlignRef) <- c("alignGroup", "refWidth")
+  aggAlignRef$refNo <- mergeAlignBins$refNo[match(aggAlignRef$alignGroup, table=mergeAlignBins$alignGroup)]
+  aggAlignRef$refFrac <- aggAlignRef$refWidth/refBin$Known[aggAlignRef$refNo]
+  
+  aggAlignQue <- aggregate(x=align$endQue[mergeAlignBins$alignNo] - align$startQue[mergeAlignBins$alignNo] + 1, by=list(mergeAlignBins$alignGroup), FUN=sum)
+  colnames(aggAlignQue) <- c("alignGroup", "queWidth")
+  aggAlignQue$queNo <- mergeAlignBins$queNo[match(aggAlignQue$alignGroup, table=mergeAlignBins$alignGroup)]
+  aggAlignQue$queFrac <- aggAlignQue$queWidth/queBin$Known[aggAlignQue$queNo]
+  
+  BinMapping <- merge(aggAlignRef, aggAlignQue, by = "alignGroup")
+  BinMapping <- BinMapping[,c("refNo", "refFrac","refWidth", "queNo", "queFrac", "queWidth")]
+  
+  return(BinMapping)
+}
+
+
+mapRemodeler <- function(refSpec, queSpec, cutoff, PCs = c("ancient_PC", "new_SINE_PC")){
+  
+  analysis <- get(paste(refSpec, "Ref_", queSpec,"Que", sep = ""))
+  BinMap <- analysis$binMap[analysis$binMap$queWidth > cutoff,]
+  metaList = NULL
+  
+  for(pc in PCs){
+    quePC <- analysis[[paste(queSpec, "Que", sep = "")]]$x[,pc]
+    refPC <- analysis[[paste(refSpec, "Ref", sep = "")]]$x[,pc]
+    
+    
+    permutePC <- matrix(data=NA, nrow=length(quePC), ncol=1000)
+    for(i in 1:1000){
+      permutePC[,i] <- sample(quePC,replace=F, size=length(quePC))
+    }
+    
+    quePC <- data.frame(real = quePC, permutePC)
+    
+    
+    agg.quePC <- aggregate(quePC[BinMap$queNo,] * BinMap$queFrac, by=list(BinMap$refNo), FUN = sum)
+    agg.refFrac <- aggregate(x=BinMap$refFrac, by=list(BinMap$refNo), FUN = sum)
+    
+    all(agg.quePC$Group.1 == agg.refFrac$Group.1)
+    
+    remodeldPC <- data.frame(refNo = agg.quePC$Group.1, 
+                             refPC = refPC[agg.quePC$Group.1],
+                             quePC = agg.quePC$real/agg.refFrac$x
+    )
+    remodeldPermutePC <- data.frame(refNo = agg.quePC$Group.1,
+                                    refPC = refPC[agg.quePC$Group.1], 
+                                    agg.quePC[,3:ncol(agg.quePC)]/agg.refFrac$x
+    )
+    
+    corDist <- NULL
+    for(i in 1:1000){
+      corDist <- c(corDist, cor(remodeldPermutePC[,2], remodeldPermutePC[,2 + i]))
+    }
+    
+    ksRes <- data.frame(ref_cutoff = ks.test(refPC,y=refPC[unique(BinMap$refNo)])$p.value,
+                        que_cutoff = ks.test(remodeldPC$quePC,y= quePC$real[unique(BinMap$queNo)])$p.value,
+                        que_initial = ks.test(remodeldPC$quePC,y= quePC$real)$p.value
+    )
+    resultList <- list(remodeldPC = remodeldPC, ksRes = ksRes, corDist = corDist)
+    metaList <- c(metaList,list(resultList))
+  }
+  
+  specs <- data.frame(ref = refSpec, que = queSpec)
+  metaList <- c(metaList, list(unique(BinMap$queNo)), list(cutoff), list(specs))
+  names(metaList) <- c(PCs, "queNo", "cutoff", "specs")
+  
+  return(metaList)
+  
+  
+ 
+}
+
+covCalcPlot <- function(lenChoice, repChoice, repBins , repList ,minRepCov = NULL, maxRepCov = NULL, minRepSize = NULL, maxRepSize = NULL, minBinSize = NULL, maxBinSize = NULL){
+  
+  
+  repBins <- repBins[repBins[,repChoice] > 0, c("chr", "start", "end", "Known", repChoice)]
+  
+  if(!is.null(maxBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 < maxBinSize,]
+  }
+  if(!is.null(minBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 > minBinSize,]
+  }
+  repBins2 <- repBins
+  
+  colnames(repBins)[5] = "repCov"
+  if(!is.null(maxRepCov)){
+    repBins <- repBins[repBins$repCov < maxRepCov,]
+  }
+  if(!is.null(minRepCov)){
+    repBins <- repBins[repBins$repCov > minRepCov,]
+  }
+  
+  repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$genoName),
+                   ranges = IRanges(start=repList[[repChoice]]$genoStart, end=repList[[repChoice]]$genoEnd)
+  )
+  
+  if(!is.null(maxRepSize)){
+    repGR <- repGR[width(repGR) < maxRepSize,]
+  }
+  if(!is.null(minRepSize)){
+    repGR <- repGR[width(repGR) > minRepSize,]
+  }
+  seqLen <- lenChoice
+  names(seqLen) <- "seq"
+  
+  us.ends <- repBins$start + ((repBins$end - repBins$start)/2)
+  us.ends[us.ends - repBins$start+1 > lenChoice] <- repBins$start[us.ends - repBins$start+1 > lenChoice] + lenChoice
+  us.bins <- data.frame(chr = repBins$chr, start = repBins$start, end = us.ends)
+  us.bins.gr <- GRanges(seqnames=Rle(us.bins$chr), 
+                        ranges = IRanges(start=us.bins$start, end = us.bins$end))
+  us.rep.int <- intersect(repGR, us.bins.gr)
+  us.Ol <- as.matrix(findOverlaps(us.bins.gr, us.rep.int))
+  us.cov <- data.frame(start = start(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1, 
+                       end =end(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1)
+  
+  us.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=us.cov$start, end = us.cov$end), seqlengths = seqLen + 1)
+  
+  
+  ds.starts <- as.integer(repBins$end - ((repBins$end - repBins$start)/2))
+  ds.starts[repBins$end - ds.starts + 1> lenChoice] <- repBins$end[repBins$end - ds.starts + 1> lenChoice] - lenChoice
+  ds.bins <- data.frame(chr = repBins$chr, start = ds.starts, end = repBins$end)
+  ds.bins.gr <- GRanges(seqnames=Rle(ds.bins$chr), 
+                        ranges = IRanges(start=ds.bins$start, end = ds.bins$end))
+  ds.rep.int <- intersect(repGR, ds.bins.gr)  
+  ds.Ol <- as.matrix(findOverlaps(ds.bins.gr, ds.rep.int))
+  ds.cov <- data.frame(start =   (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (start(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1 ,
+                       end =  (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (end(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1)
+  ds.cov.r <- GRanges(seqnames=Rle("seq"),ranges = IRanges(start=ds.cov$start, end=ds.cov$end),seqlengths = seqLen + 1)
+  
+  totCov <- as.numeric(coverage(ds.cov.r)$seq[(lenChoice+1):1]) + as.numeric(coverage(us.cov.r)$seq)
+  
+  len.s <- sort(as.integer((repBins$end - repBins$start+1) / 2))
+  lenSum <- summary(as.factor(len.s), maxsum=length(unique(len.s)))
+  CS <- cumsum(as.integer(lenSum)[length(lenSum):1])
+  CS <- CS[length(CS):1]
+  step <- stepfun(as.numeric(names(lenSum)), c(CS,0))
+  stepRes <- step(1:(lenChoice+1)) * 2
+  
+  p = sum(repBins$repCov)/sum(repBins$end - repBins$start + 1)
+  n = stepRes
+  
+  output = list(rawRepCov = totCov, zRepCov = (totCov - n*p)/sqrt(n*p*(1-p)), mean = n*p, sd = sqrt(n*p*(1-p)), baseFreq = stepRes)
+  return(output)
+  
+}
+
+
+
+
+covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList , 
+                                    refgene , type , minRepCov = NULL, maxRepCov = NULL, 
+                                    minRepSize = NULL, maxRepSize = NULL, minBinSize = NULL, 
+                                    maxBinSize = NULL){
+  
+  
+  
+  refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
+  
+  repBins <- repBins[repBins[,repChoice] > 0, c("chr", "start", "end", "Known", repChoice)]
+  
+  if(!is.null(maxBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 < maxBinSize,]
+  }
+  if(!is.null(minBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 > minBinSize,]
+  }
+  repBins2 <- repBins
+  
+  colnames(repBins)[5] = "repCov"
+  if(!is.null(maxRepCov)){
+    repBins <- repBins[repBins$repCov < maxRepCov,]
+  }
+  if(!is.null(minRepCov)){
+    repBins <- repBins[repBins$repCov > minRepCov,]
+  }
+  
+  repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$genoName),
+                   ranges = IRanges(start=repList[[repChoice]]$genoStart, end=repList[[repChoice]]$genoEnd)
+  )
+  
+  if(!is.null(maxRepSize)){
+    repGR <- repGR[width(repGR) < maxRepSize,]
+  }
+  if(!is.null(minRepSize)){
+    repGR <- repGR[width(repGR) > minRepSize,]
+  }
+  seqLen <- lenChoice
+  names(seqLen) <- "seq"
+  
+  us.ends <- repBins$start + ((repBins$end - repBins$start)/2)
+  us.ends[us.ends - repBins$start+1 > lenChoice] <- repBins$start[us.ends - repBins$start+1 > lenChoice] + lenChoice
+  us.bins <- data.frame(chr = repBins$chr, start = repBins$start, end = us.ends)
+  us.bins.gr <- GRanges(seqnames=Rle(us.bins$chr), 
+                        ranges = IRanges(start=us.bins$start, end = us.bins$end))
+  us.rep.int <- intersect(repGR, us.bins.gr)
+  us.Ol <- as.matrix(findOverlaps(us.bins.gr, us.rep.int))
+  us.cov <- data.frame(start = start(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1, 
+                       end =end(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1)
+  
+  
+  
+  ds.starts <- as.integer(repBins$end - ((repBins$end - repBins$start)/2))
+  ds.starts[repBins$end - ds.starts + 1> lenChoice] <- repBins$end[repBins$end - ds.starts + 1> lenChoice] - lenChoice
+  ds.bins <- data.frame(chr = repBins$chr, start = ds.starts, end = repBins$end)
+  ds.bins.gr <- GRanges(seqnames=Rle(ds.bins$chr), 
+                        ranges = IRanges(start=ds.bins$start, end = ds.bins$end))
+  ds.rep.int <- intersect(repGR, ds.bins.gr)  
+  ds.Ol <- as.matrix(findOverlaps(ds.bins.gr, ds.rep.int))
+  ds.cov <- data.frame(start =   (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (start(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1 ,
+                       end =  (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (end(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1)
+  
+  
+  if(type == "intergenic"){
+    us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, maxgap=1))
+    if(!(length(unique(us.s.ol[,1])) == length(us.bins.gr))){
+      stop("some intergenic regions have no upstream gene")
+    }
+    us.strand <- data.frame(intergenicID = us.s.ol[,1],strand = refgene[us.s.ol[,2], 4])
+    us.plus <- unique(us.strand$intergenicID[us.strand$strand == "+"])
+    us.minus <- unique(us.strand$intergenicID[us.strand$strand == "-"])
+    
+    if(length(c(us.plus[us.plus %in% us.minus],us.minus[us.minus %in% us.plus])) != 0){
+      stop("strand confusion in upstream intergenic regions")
+    }
+    
+    ds.s.ol <- as.matrix(findOverlaps(ds.bins.gr, refgene.gr, maxgap=1))
+    if(!(length(unique(ds.s.ol[,1])) == length(ds.bins.gr))){
+      stop("some intergenic regions have no downstream gene")
+    }
+    ds.strand <- data.frame(intergenicID = ds.s.ol[,1],strand = refgene[ds.s.ol[,2], 4])
+    ds.plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+    ds.minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+    
+    if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
+      stop("strand confusion in downstream intergenic regions")
+    }
+    
+  }else if(type == "intron"){
+    
+    us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, minoverlap=2))
+    if(!(length(unique(us.s.ol[,1])) == length(us.bins.gr))){
+      stop("some upstream intron regions don't belong to a gene")
+    }
+    us.strand <- data.frame(intronID = us.s.ol[,1],strand = refgene[us.s.ol[,2], 4])
+    us.plus <- unique(us.strand$intronID[us.strand$strand == "+"])
+    us.minus <- unique(us.strand$intronID[us.strand$strand == "-"])
+    
+    if(length(c(us.plus[us.plus %in% us.minus],us.minus[us.minus %in% us.plus])) != 0){
+      stop("strand confusion in upstream intron region")
+    }
+    
+    ds.s.ol <- as.matrix(findOverlaps(ds.bins.gr, refgene.gr, minoverlap=2))
+    if(!(length(unique(ds.s.ol[,1])) == length(ds.bins.gr))){
+      stop("some downstream intron regions don't belong to a gene")
+    }
+    ds.strand <- data.frame(intergenicID = ds.s.ol[,1],strand = refgene[ds.s.ol[,2], 4])
+    ds.plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+    ds.minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+    
+    if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
+      stop("strand confusion in downstream intron region")
+    }
+    
+    
+    
+  }else{
+    stop("type needs to be intron or intergenic")
+  }
+  ### everything that is minus we have to reverse the coordinates 
+  # upstream region of intergenic in plus strand is the 3prime region of a gene
+  #us.Ol[,1] tells us which bin the repeats belong to
+  prime3_us <- us.cov[us.Ol[us.Ol[,1] %in% us.plus,2],]
+  prime5_us <- data.frame(start = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$end + 1, 
+                          end = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$start + 1)
+  
+  prime3_ds <- data.frame(start = lenChoice + 1- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$end + 1, 
+                          end = lenChoice + 1 - ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$start + 1)
+  prime5_ds <- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.plus,2],]
+  
+  prime5 <- rbind(prime5_ds, prime5_us)
+  prime3 <- rbind(prime3_ds, prime3_us)
+  
+  prime5.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime5$start, end = prime5$end), seqlengths = seqLen + 1)
+  prime3.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime3$start, end = prime3$end), seqlengths = seqLen + 1)
+  
+  #### coverage is sorted. 
+  ### now i need to get base frequencies for each side. 
+  ### this means collecting the correct information 
+  ### us.plus and us.minus can help sort that
+  
+  
+  prime5Lengths <- c(width(us.bins.gr[us.minus]), width(ds.bins.gr[ds.plus]))
+  prime3Lengths <- c(width(us.bins.gr[us.plus]), width(ds.bins.gr[ds.minus]))
+  
+  len.s <- sort(prime5Lengths)
+  lenSum <- summary(as.factor(len.s), maxsum=length(unique(len.s)))
+  CS <- cumsum(as.integer(lenSum)[length(lenSum):1])
+  CS <- CS[length(CS):1]
+  step <- stepfun(as.numeric(names(lenSum)[2:(length(lenSum))]), c(CS))
+  prime5stepRes <- step(1:(lenChoice+1))[(lenChoice+1):1]
+  
+  len.s <- sort(prime3Lengths)
+  lenSum <- summary(as.factor(len.s), maxsum=length(unique(len.s)))
+  CS <- cumsum(as.integer(lenSum)[length(lenSum):1])
+  CS <- CS[length(CS):1]
+  step <- stepfun(as.numeric(names(lenSum)[2:(length(lenSum))]), c(CS))
+  prime3stepRes <- step(1:(lenChoice+1))
+  
+  
+  p = sum(repBins$repCov)/sum(repBins$end - repBins$start + 1)
+  output = list(rawRepCov5 = as.numeric(coverage(prime5.cov.r)$seq),
+                rawRepCov3 = as.numeric(coverage(prime3.cov.r)$seq) ,
+                zRepCov5 = (as.numeric(coverage(prime5.cov.r)$seq) - prime5stepRes*p)/sqrt(prime5stepRes*p*(1-p)),
+                zRepCov3 = (as.numeric(coverage(prime3.cov.r)$seq) - prime3stepRes*p)/sqrt(prime3stepRes*p*(1-p)), 
+                p = p, 
+                baseFreq5prime = prime5stepRes, 
+                baseFreq3prime = prime3stepRes
+  )
+  return(output)
+  
+}  
+
+
+
+
+### takes out regions that don't have up and downstream or are both an up and downstream coordinate
+filterIntergenic <- function(refgene){
+  refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
+  refgene_gap.gr <- gaps(refgene.gr)
+  
+  refgene_gap_startCH.gr <- refgene_gap.gr 
+  end(refgene_gap_startCH.gr) <- end(refgene_gap.gr) - 1
+  Sol <- as.matrix(findOverlaps(refgene_gap_startCH.gr, refgene.gr, maxgap=1))
+  
+  us.strand <- data.frame(intergenicID = Sol[,1],strand = refgene[Sol[,2], 4])
+  plus <- unique(us.strand$intergenicID[us.strand$strand == "+"])
+  minus <- unique(us.strand$intergenicID[us.strand$strand == "-"])
+  strandConflict <- unique(c(plus[plus %in% minus] , minus[minus %in% plus]))
+  
+  refgene_gap_endCH.gr <- refgene_gap.gr 
+  start(refgene_gap_endCH.gr) <- start(refgene_gap.gr) + 1
+  Eol <- as.matrix(findOverlaps(refgene_gap_endCH.gr, refgene.gr, maxgap=1))
+  
+  ds.strand <- data.frame(intergenicID = Eol[,1],strand = refgene[Eol[,2], 4])
+  plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+  minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+  strandConflict<- c(strandConflict, unique(c(plus[plus %in% minus] , minus[minus %in% plus])))
+  
+  gapKeep <- unique(c(Eol[Eol[,1] %in% Sol[,1],1],   Sol[Sol[,1] %in% Eol[,1],1]))
+  gapKeep <- gapKeep[!(gapKeep %in% strandConflict)]
+  
+  refgene_gap.gr <- refgene_gap.gr[gapKeep]
+  return(refgene_gap.gr)
+}
+
+
+
+# pulls out a set of both non overlapping and perfectly overlapping intronic regions
+# strandedness is consistent between introns from multiple transcripts. 
+# Introns overlapping any exons are also removed
+
+filterIntron <- function(refgene){
+  
+  
+  refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
+  
+  Echr <- NULL
+  Ichr <- NULL
+  Estart <- strsplit(x=as.character(refgene[,10]),split=",")
+  Eend <- strsplit(x=as.character(refgene[,11]),split=",")
+  Istart <- Eend
+  Iend <- Estart
+  for(i in 1:nrow(refgene)){
+    if(refgene[i,9] > 1){
+      Istart[[i]] = as.numeric(Istart[[i]][1:(length(Istart[[i]])-1)])
+      Iend[[i]] = as.numeric(Iend[[i]][2:(length(Iend[[i]]))])
+    }else{
+      Istart[[i]] = NA
+      Iend[[i]] = NA
+    }
+    Estart[[i]] = as.numeric(Estart[[i]])
+    Eend[[i]] = as.numeric(Eend[[i]])
+    Echr <- c(Echr, list(rep(as.character(refgene[i,3]), refgene[i,9])))
+    Ichr <- c(Ichr, list(rep(as.character(refgene[i,3]), length(Istart[[i]]))))
+  }
+  
+  Exons <- data.frame(chr = do.call(c, Echr), start = do.call(c,Estart), end = do.call(c,Eend))
+  Introns <- data.frame(chr = do.call(c, Ichr), start = do.call(c,Istart), end = do.call(c,Iend))
+  Introns <- Introns[!(is.na(Introns$start)),]                                        
+  
+  
+  # intron filtering, probably could be a function
+  
+  intron.gr <- GRanges(seqnames = Rle(Introns$chr), 
+                       ranges = IRanges(start=Introns$start, end=Introns$end)
+  )
+  I.OL <- as.matrix(findOverlaps(intron.gr))
+  intronPull <- (1:length(intron.gr))[-unique(I.OL[duplicated(I.OL[,1]),1])]
+  intronKeep.gr <- intron.gr[intronPull]
+  intronReamin.gr <- intron.gr[unique(I.OL[duplicated(I.OL[,1]),1])]
+  I.OL <- as.matrix(findOverlaps(intronReamin.gr, type = "equal"))
+  eqOl.gr <- intronReamin.gr[unique(I.OL[duplicated(I.OL[,1]),1])]
+  red <- reduce(eqOl.gr)
+  ol2 <- as.matrix(findOverlaps(red, intronReamin.gr[-unique(I.OL[duplicated(I.OL[,1]),1])]))
+  intronKeep.gr = c(intronKeep.gr, red[-unique(ol2[,1])])
+  
+  if(length(intronKeep.gr) == length(reduce(intronKeep.gr))){
+    print("Single layer of intronic regions")
+  }
+  
+  exon.gr <- GRanges(seqnames=Rle(Exons$chr),
+                     ranges = IRanges(start=Exons$start, end = Exons$end))
+  
+  IolE <- as.matrix(findOverlaps(intronKeep.gr,exon.gr,minoverlap=2))
+  
+  intronKeep.gr <- intronKeep.gr[-unique(IolE[,1])]
+  # strand consistancy 
+  
+  IolS <- as.matrix(findOverlaps(intronKeep.gr,refgene.gr,minoverlap=2))
+  strandCon <- data.frame(intronID = IolS[,1],strand = refgene[IolS[,2], 4])
+  plus <- unique(strandCon$intronID[strandCon$strand == "+"])
+  minus <- unique(strandCon$intronID[strandCon$strand == "-"])
+  strandConflict <- unique(c(plus[plus %in% minus] , minus[minus %in% plus]))
+  intronKeep.gr <- intronKeep.gr[-strandConflict]
+  
+  return(intronKeep.gr)
+  
+}
+
+
+
+#######
+# #######  Functions 
+#
+# binned.genome.reader
+# General.G
+# General.G.WG
+# hostspot.G
+# hotspot.G.WG
+# M.j
+# region.Finder
+# Z.moran
+# Z.moran.WG
+
+
+
+
+
+
+
+
+
+
+
+
+# 
+# 
+# 
+# A <- binned.genome.reader(bin.size=c(50000))
+# 
+# B <- A[[1]][10:19,]
+# 
+# X <- 1:nrow(B)
+# 
+# N <- neighbor.matrix(B,X)
+# neighbors = N
+# 
+# 
+# head(Neighbors - X.bar)*head(w)
+# 
+# 
+# 
+# Z.moran.WG(X, neighbors)
+# 
+# 
+# General.G.WG(X,neighbors)
+# 
+# 
+# n = length(X)
+# w = matrix(data = 0, ncol = n, nrow = n)
+# for(W in 1:(n-1)){
+#   w[W+ 1,W] = 1
+#   w[W, W +1] = 1
+#   # w[W,W] = 1
+# }
+# 
+# General.G(X,w)
+# 
+# 
+# 
+# X = 1:20
