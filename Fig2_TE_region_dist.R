@@ -8,6 +8,9 @@
 # on both fractions theres constraint pertaining to the amount but the constraint on position is different
 
 
+
+
+
 setwd("~/Desktop/topological_domains/")
 
 rm(list = ls())
@@ -15,8 +18,6 @@ rm(list = ls())
 
 library(GenomicRanges)
 library(rtracklayer)
-library(BSgenome)
-library(BSgenome.Hsapiens.UCSC.hg19)
 
 spec1 <- "Human"
 genome = "hg19"
@@ -112,7 +113,7 @@ log10(60000)
 
 # region comparison
 
-minS <- 30000
+minS <- NULL
 maxS <- NULL
 minRepCov <- 5000
 maxRepCov <- 7000
@@ -424,7 +425,7 @@ result_tabInter <- data.frame(intervalSize = bin_strat[1:(length(bin_strat)-1)],
 result_tabIntron <- data.frame(intervalSize = bin_strat[1:(length(bin_strat)-1)], mean = NA, sd = NA)
 
 
-repChoice = "L1PB"
+repChoice = "AluS"
 InterDat = NULL
 for(i in 1:nrow(result_tabInter)){
   selection = intergenic_reps$rates[,repChoice][intergenic_reps$rates$Known < bin_strat[i+1] & intergenic_reps$rates$Known > bin_strat[i]]
@@ -481,9 +482,6 @@ boxplot(InterDat,outline=T, ylim = c(1,10000))
 # we could potentially do this today 
 # we know which ranges we are grabbing for both intron and intergenic 
 # all we need is to factor it in
-
-
-
 ### lets try pull out GC content
 
 Seq=Hsapiens[["chr1"]]
@@ -498,6 +496,9 @@ Seq.set=DNAStringSet(Hsapiens[[chrChoice]], start=start(refgene_gap.gr[seqnames(
 bases=alphabetFrequency(Seq.set,baseOnly=TRUE)
 CGcontent <- rowSums(bases[,c("G", "C")]) / rowSums(bases[,c("A", "C", "T", "G")])
 
+
+
+# find 
 
 chromos <- as.character(unique(intergenic_reps$counts$chr))
 IntergenicGC <- rep(NA, nrow(intergenic_reps$counts))
@@ -523,26 +524,34 @@ for(i in 1:length(chromos)){
 }
 
 
-repChoice <- "Known"
+repChoice <- "AluS"
 intronGCset <- IntronGC[intron_reps$rates[,repChoice] > 0]
 intronTEset <- intron_reps$rates[intron_reps$rates[,repChoice] > 0,repChoice]
 intergenicGCset <- IntergenicGC[intergenic_reps$rates[,repChoice] > 0]
 intergenicTEset <- intergenic_reps$rates[intergenic_reps$rates[,repChoice] > 0,repChoice]
 
 plot((intronGCset),
-      log10(intronTEset),
-      pch = 16, cex = .2, col = 2 , main = repChoice,
+      (intronTEset),
+      pch = 16, cex = .05, col = 2 , main = repChoice,
      ylab = "TE coverage rate (log10 per 10000bp)",
      xlab = "GC content"
       )
 points((intergenicGCset),
-     log10(intergenicTEset), 
-     pch = 16, cex = .2)
-interMod <- lm(log10(intergenicTEset) ~ (intergenicGCset))
-intronMod <- lm(log10(intronTEset) ~ (intronGCset))
+     (intergenicTEset), 
+     pch = 16, cex = .05)
+interMod <- lm((intergenicTEset) ~ (intergenicGCset))
+intronMod <- lm((intronTEset) ~ (intronGCset))
 
-abline(intronMod, col = 2, lwd = 2)
-abline(interMod, col = 1, lwd = 2)
+
+intronMod2 <- loess((intronTEset) ~ (intronGCset))
+interMod2 <- loess((intergenicTEset) ~ (intergenicGCset))
+lines(seq(.1,.65,.01), predict(object=intronMod2, newdata=seq(.1,.65,.01)), col = 2, lwd = 2)
+lines(seq(.1,.65,.01), predict(object=interMod2, newdata=seq(.1,.65,.01)), col = 1, lwd = 2)
+
+
+
+abline(intronMod, col = 2, lwd = 2, lty = 2)
+abline(interMod, col = 1, lwd = 2, , lty = 2)
 legend("bottomright", legend=c("intergenic", "intron"), fill = c(1,2))
 
 legend("topright", bty="n", legend=c(paste("intergenic r =", format(sqrt(summary(interMod)$r.squared), digits=3)), 
@@ -550,6 +559,285 @@ legend("topright", bty="n", legend=c(paste("intergenic r =", format(sqrt(summary
                                      )
        )
 
+
+
+
+### if we can extract the Cs and Gs and put them in a rep style list opject
+### then we can plug them straight into our annalysis 
+### the Cs and Gs can be in any order
+
+
+
+# this is essentially another way to work it out 
+# it is probably quiclker then calculating each one individually and then sending it through our script
+# alternativly 
+# we could just add the start position of the interval 
+# this function gcRepObject
+
+
+# lets see if we can vectorise when we calculate the mean 
+
+
+
+lenChoice = 500000
+repChoice = "AluS"
+repBins = intergenic_reps$counts
+repList = rep
+type = "intergenic"
+
+covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList , 
+                                    refgene , type ,genome=genome ,minRepCov = NULL, maxRepCov = NULL, 
+                                    minRepSize = NULL, maxRepSize = NULL, minBinSize = NULL, 
+                                    maxBinSize = NULL){
+  #### CG stats
+  
+  library(BSgenome)
+  bsGenome <- available.genomes()[grep(genome,available.genomes())]
+  bsGenome <- bsGenome[-(grep("masked", bsGenome))]
+  library(bsGenome, character.only=TRUE)
+  bsSpec <- get(strsplit(bsGenome,split="\\.")[[1]][2])
+  
+  
+  
+  
+  
+  
+  refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
+  
+  repBins <- repBins[repBins[,repChoice] > 0, c("chr", "start", "end", "Known", repChoice)]
+  
+  if(!is.null(maxBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 < maxBinSize,]
+  }
+  if(!is.null(minBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 > minBinSize,]
+  }
+  
+  chromos <- as.character(unique(repBins$chr))
+  repBinsGC <- rep(NA, nrow(repBins))
+  for(i in 1:length(chromos)){
+    Seq.set=DNAStringSet(Hsapiens[[chromos[i]]], 
+                         start=repBins$start[repBins$chr == chromos[i]], 
+                         end=repBins$end[repBins$chr == chromos[i]])
+    bases=data.frame(alphabetFrequency(Seq.set,baseOnly=TRUE))
+    CGcontent <- rowSums(bases[,c("G", "C")]) / rowSums(bases[,c("A", "C", "T", "G")])
+    repBinsGC[repBins$chr == chromos[i]] <- CGcontent
+    
+  }
+  
+  
+  
+  
+  
+  
+  colnames(repBins)[5] = "repCov"
+  if(!is.null(maxRepCov)){
+    repBins <- repBins[repBins$repCov < maxRepCov,]
+  }
+  if(!is.null(minRepCov)){
+    repBins <- repBins[repBins$repCov > minRepCov,]
+  }
+  
+  repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$genoName),
+                   ranges = IRanges(start=repList[[repChoice]]$genoStart, end=repList[[repChoice]]$genoEnd)
+  )
+  
+  if(!is.null(maxRepSize)){
+    repGR <- repGR[width(repGR) < maxRepSize,]
+  }
+  if(!is.null(minRepSize)){
+    repGR <- repGR[width(repGR) > minRepSize,]
+  }
+  seqLen <- lenChoice
+  names(seqLen) <- "seq"
+  
+  us.ends <- repBins$start + ((repBins$end - repBins$start)/2)
+  us.ends[us.ends - repBins$start+1 > lenChoice] <- repBins$start[us.ends - repBins$start+1 > lenChoice] + lenChoice
+  us.bins <- data.frame(chr = repBins$chr, start = repBins$start, end = us.ends)
+  us.bins.gr <- GRanges(seqnames=Rle(us.bins$chr), 
+                        ranges = IRanges(start=us.bins$start, end = us.bins$end))
+  us.rep.int <- intersect(repGR, us.bins.gr)
+  us.Ol <- as.matrix(findOverlaps(us.bins.gr, us.rep.int))
+  us.cov <- data.frame(start = start(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1, 
+                       end =end(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1)
+  
+  
+  
+  ds.starts <- as.integer(repBins$end - ((repBins$end - repBins$start)/2))
+  ds.starts[repBins$end - ds.starts + 1> lenChoice] <- repBins$end[repBins$end - ds.starts + 1> lenChoice] - lenChoice
+  ds.bins <- data.frame(chr = repBins$chr, start = ds.starts, end = repBins$end)
+  ds.bins.gr <- GRanges(seqnames=Rle(ds.bins$chr), 
+                        ranges = IRanges(start=ds.bins$start, end = ds.bins$end))
+  ds.rep.int <- intersect(repGR, ds.bins.gr)  
+  ds.Ol <- as.matrix(findOverlaps(ds.bins.gr, ds.rep.int))
+  ds.cov <- data.frame(start =   (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (start(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1 ,
+                       end =  (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (end(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1)
+  
+  
+  if(type == "intergenic"){
+    us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, maxgap=1))
+    if(!(length(unique(us.s.ol[,1])) == length(us.bins.gr))){
+      stop("some intergenic regions have no upstream gene")
+    }
+    us.strand <- data.frame(intergenicID = us.s.ol[,1],strand = refgene[us.s.ol[,2], 4])
+    us.plus <- unique(us.strand$intergenicID[us.strand$strand == "+"])
+    us.minus <- unique(us.strand$intergenicID[us.strand$strand == "-"])
+    
+    if(length(c(us.plus[us.plus %in% us.minus],us.minus[us.minus %in% us.plus])) != 0){
+      stop("strand confusion in upstream intergenic regions")
+    }
+    
+    ds.s.ol <- as.matrix(findOverlaps(ds.bins.gr, refgene.gr, maxgap=1))
+    if(!(length(unique(ds.s.ol[,1])) == length(ds.bins.gr))){
+      stop("some intergenic regions have no downstream gene")
+    }
+    ds.strand <- data.frame(intergenicID = ds.s.ol[,1],strand = refgene[ds.s.ol[,2], 4])
+    ds.plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+    ds.minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+    
+    if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
+      stop("strand confusion in downstream intergenic regions")
+    }
+    
+  }else if(type == "intron"){
+    
+    us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, minoverlap=2))
+    if(!(length(unique(us.s.ol[,1])) == length(us.bins.gr))){
+      stop("some upstream intron regions don't belong to a gene")
+    }
+    us.strand <- data.frame(intronID = us.s.ol[,1],strand = refgene[us.s.ol[,2], 4])
+    us.plus <- unique(us.strand$intronID[us.strand$strand == "+"])
+    us.minus <- unique(us.strand$intronID[us.strand$strand == "-"])
+    
+    if(length(c(us.plus[us.plus %in% us.minus],us.minus[us.minus %in% us.plus])) != 0){
+      stop("strand confusion in upstream intron region")
+    }
+    
+    ds.s.ol <- as.matrix(findOverlaps(ds.bins.gr, refgene.gr, minoverlap=2))
+    if(!(length(unique(ds.s.ol[,1])) == length(ds.bins.gr))){
+      stop("some downstream intron regions don't belong to a gene")
+    }
+    ds.strand <- data.frame(intergenicID = ds.s.ol[,1],strand = refgene[ds.s.ol[,2], 4])
+    ds.plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+    ds.minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+    
+    if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
+      stop("strand confusion in downstream intron region")
+    }
+    
+    
+    
+  }else{
+    stop("type needs to be intron or intergenic")
+  }
+  ### everything that is minus we have to reverse the coordinates 
+  # upstream region of intergenic in plus strand is the 3prime region of a gene
+  #us.Ol[,1] tells us which bin the repeats belong to
+  prime3_us <- us.cov[us.Ol[us.Ol[,1] %in% us.plus,2],]
+  prime5_us <- data.frame(start = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$end + 1, 
+                          end = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$start + 1)
+  
+  prime3_ds <- data.frame(start = lenChoice + 1- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$end + 1, 
+                          end = lenChoice + 1 - ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$start + 1)
+  prime5_ds <- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.plus,2],]
+  
+  prime5 <- rbind(prime5_ds, prime5_us)
+  prime3 <- rbind(prime3_ds, prime3_us)
+  
+  prime5.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime5$start, end = prime5$end), seqlengths = seqLen + 1)
+  prime3.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime3$start, end = prime3$end), seqlengths = seqLen + 1)
+  
+  
+  #### coverage is sorted. 
+  ### now i need to get base frequencies for each side. 
+  ### this means collecting the correct information 
+  ### us.plus and us.minus can help sort that
+  
+  
+  prime5Lengths <- c(width(us.bins.gr[us.minus]), width(ds.bins.gr[ds.plus]))
+  prime3Lengths <- c(width(us.bins.gr[us.plus]), width(ds.bins.gr[ds.minus]))
+  
+  len.s <- sort(prime5Lengths)
+  lenSum <- summary(as.factor(len.s), maxsum=length(unique(len.s)))
+  CS <- cumsum(as.integer(lenSum)[length(lenSum):1])
+  CS <- CS[length(CS):1]
+  step <- stepfun(as.numeric(names(lenSum)[2:(length(lenSum))]), c(CS))
+  prime5stepRes <- step(1:(lenChoice+1))[(lenChoice+1):1]
+  
+  len.s <- sort(prime3Lengths)
+  lenSum <- summary(as.factor(len.s), maxsum=length(unique(len.s)))
+  CS <- cumsum(as.integer(lenSum)[length(lenSum):1])
+  CS <- CS[length(CS):1]
+  step <- stepfun(as.numeric(names(lenSum)[2:(length(lenSum))]), c(CS))
+  prime3stepRes <- step(1:(lenChoice+1))
+  
+  
+  
+  ### the GC rates 
+  ### we get the mean for each postion and treat them as a scaling facot
+  ### this should equallize the GC contnet across the genome
+  
+  prime5rate <- c(repBinsGC[us.minus],repBinsGC[ds.plus])[order(prime5Lengths)]
+  coords <- prime5stepRes- min(prime5stepRes)+1
+  prime5gcWeight = rep(NA, (lenChoice + 1))
+  for(i in 1:length(prime5gcWeight)){
+    prime5gcWeight[i] = mean(prime5rate[coords[i]:length(prime5rate)])
+  }
+  
+#  A <- list(c(2,3,4), c(100,101))
+#  sapply(X=A,FUN=mean)
+       
+  
+  
+  p5w <- (prime5gcWeight)[(lenChoice+1):1]
+  
+  plot(p5w, type = "l")
+  
+  plot(prime5stepRes , type = "l")
+  
+  plot(as.numeric(coverage(prime5.cov.r)$seq)/prime5stepRes, type = "l")
+  
+  plot(as.numeric(coverage(prime5.cov.r)$seq)/(prime5stepRes * p5w), type = "l")
+  
+  
+  
+  plot((repBinsGC), (repBins$repCov/repBins$Known), pch = 16, cex = .05)
+  
+  Mod <- loess((repBins$repCov/repBins$Known) ~ (repBinsGC))
+  
+  plot(predict(Mod, newdata=p5w), type = "l")
+  
+  plot((p5w * Mod$coefficients[2]) -0.1466143, type ="l")
+  
+  plot( (as.numeric(coverage(prime5.cov.r)$seq)/(prime5stepRes)) - predict(Mod, newdata=p5w) , type = "l")
+  
+  plot(-(log10((lenChoice+1):1)) ,(as.numeric(coverage(prime5.cov.r)$seq)/(prime5stepRes)) - ((p5w * Mod$coefficients[2]) -0.1466143) , type = "l")
+  
+  
+  p = sum(repBins$repCov)/sum(repBins$end - repBins$start + 1)
+  output = list(rawRepCov5 = as.numeric(coverage(prime5.cov.r)$seq),
+                rawRepCov3 = as.numeric(coverage(prime3.cov.r)$seq) ,
+                zRepCov5 = (as.numeric(coverage(prime5.cov.r)$seq) - prime5stepRes*p)/sqrt(prime5stepRes*p*(1-p)),
+                zRepCov3 = (as.numeric(coverage(prime3.cov.r)$seq) - prime3stepRes*p)/sqrt(prime3stepRes*p*(1-p)), 
+                p = p, 
+                baseFreq5prime = prime5stepRes, 
+                baseFreq3prime = prime3stepRes
+  )
+  return(output)
+  
+}  
+
+
+
+
+# GC content is being interesting, I wonder if getting the content of the regions then taking the mean over all the bases the right approach
+
+# we seem to be taking the avarge rate
+# rather than the rate over a position. 
+
+# also it might be worth calculating the non TE GC rate. 
+# it would be quite easy # we just take the setdiff
+# and use those coordinates and map it back to the bin
 
 
 
