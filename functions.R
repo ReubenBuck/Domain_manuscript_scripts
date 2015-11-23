@@ -1318,7 +1318,7 @@ covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList ,
                      ranges = IRanges(start=repList[[repChoice]]$genoStart, end=repList[[repChoice]]$genoEnd)
     )
   }
-  if(repType = "choromatin"){
+  if(repType = "chromatin"){
     repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$chrom),
                      ranges = IRanges(start=repList[[repChoice]]$chromStart, end=repList[[repChoice]]$chromEnd)
     )
