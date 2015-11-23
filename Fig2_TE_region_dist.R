@@ -24,9 +24,9 @@ spec1 <- "Human"
 genome = "hg19"
 
 
-source(file="~/Desktop/element_curves/element_curves_scripts/functions.R")
+source(file="~/Desktop/Domain_manuscript/Domain_manuscript_scripts/functions.R")
 source(file="~/Desktop/Domain_manuscript/Domain_manuscript_scripts/rep_db.R")
-
+load(file = "~/Desktop/Domain_manuscript/R_objects/chromStateCombined")
 
 # so lets read in the whole genome and find a way to build the neighbormatrix
 
@@ -92,6 +92,10 @@ rep = rep_info(spec1=spec1,genome=genome)
 intergenic_reps <- binSort(rep=rep, bins=bins_gene_gap, TE.names=names(rep))
 
 intron_reps <- binSort(rep=rep, bins=bins_intron, TE.names=names(rep))
+
+intergenic_chromatin <- binSort(rep = `H1-hESC`, bins = bins_gene_gap, TE.names = names(`H1-hESC`), repType = "chromatin")
+
+intron_chromatin <- binSort(rep = `H1-hESC`, bins = bins_intron, TE.names = names(`H1-hESC`), repType = "chromatin")
 
 #interesting that intervals with repeats in them tend to be over 1000 in length
 
@@ -204,13 +208,13 @@ binnedGenome <- get(paste(genome_type , "JoinedFam", sep = ""))
 
 
 repChoice <- "old_L1"
-old_L1 <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
+old_L1 <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, repType = "repeats",maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
 repChoice <- "new_L1"
-new_L1 <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
+new_L1 <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, repType = "repeats",maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
 repChoice <- "Alu"
-Alu <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
+Alu <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, repType = "repeats",maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
 repChoice <- "Ancient"
-Ancient <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
+Ancient <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=binnedGenome,repList=joinRep, refgene=refgene, type= genome_type,minBinSize=minS, repType = "repeats",maxBinSize=maxS,minRepCov=NULL, maxRepCov=NULL)
 
 sqrtCoordinates <- -(sqrt(1:(lenChoice + 1))[(lenChoice + 1):1])
 Coordinates <- -((lenChoice + 1))
@@ -232,13 +236,24 @@ n5 = TEs_intergenic$baseFreq5prime
 ylims <- c(0,.2)
 
 
+
+greys <- grey(level = seq(.9,0,-.1))
+prime5BaseFreq <- data.frame(baseFreq =TEset$baseFreq5prime, 
+                             group = cut(TEset$baseFreq5prime, breaks = length(greys), labels = as.character(1:length(greys))),
+                             position = sqrtCoordinates)
+prime3BaseFreq <- data.frame(baseFreq =TEset$baseFreq3prime, 
+                             group = cut(TEset$baseFreq3prime, breaks = length(greys), labels = as.character(1:length(greys))),
+                             position = sqrtCoordinates)
+
 layout(matrix(c(1,3,5,7,2,4,6,8), nrow = 4, ncol = 2), heights = c(10,10,10,15,10,10,10,15))
 
-
 par(mar=c(0,5,1,0))
-plot(sqrtCoordinates,(old_L1$rawRepCov5/TEset$baseFreq5prime), type = "l", ylab = "old_L1", xlab = "", ylim = ylims, xaxt = "n" )
- lines(sqrtCoordinates,predict(old_L1Mod, gcRate5) + (2 * sqrt(n5 * predict(old_L1Mod, gcRate5) *  (1 - predict(old_L1Mod, gcRate5))))/n5, col = 2)
- lines(sqrtCoordinates,predict(old_L1Mod, gcRate5) - (2 * sqrt(n5 * predict(old_L1Mod, gcRate5) *  (1 - predict(old_L1Mod, gcRate5))))/n5, col = 2)
+plot(sqrtCoordinates,(old_L1$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = "old_L1", xlab = "", ylim = ylims, xaxt = "n" )
+for(c in 1:length(greys)){
+  lines(sqrtCoordinates[prime5BaseFreq$group == c], (old_L1$rawRepCov5/TEset$baseFreq5prime)[prime5BaseFreq$group == c], col = greys[c])
+}
+lines(sqrtCoordinates,predict(old_L1Mod, gcRate5) + (2 * sqrt(n5 * predict(old_L1Mod, gcRate5) *  (1 - predict(old_L1Mod, gcRate5))))/n5, col = 2)
+lines(sqrtCoordinates,predict(old_L1Mod, gcRate5) - (2 * sqrt(n5 * predict(old_L1Mod, gcRate5) *  (1 - predict(old_L1Mod, gcRate5))))/n5, col = 2)
 grid()
 
 par(mar=c(0,0,1,5))
@@ -293,19 +308,91 @@ axis(1,at = seq(0,350, by = 50), labels = seq(0,350, by = 50)^2)
 
 
 
+##### lets get the chormatin states in here
+
+###### its probably worth thinking about GC content
+###### so the ideas is that insertions are a result of chromatin at locations near a gene 
+
+heteroBig <- localGCgenome(repList = `H1-hESC`,binSize = 20000,sampSize = 5000, genome = genome, repType = "chromatin")
+
+layout(1)
+par(mar=c(5,5,5,5))
+plot(heteroBig$GC, heteroBig$T, pch = 16, cex = .3)
+heterolo <- loess(heteroBig$T~heteroBig$GC)
+lines(seq(.1,1,.01), predict(heterolo, seq(.1,1,.01)))
+
+
+Rlo  <- loess(heteroBig$R~heteroBig$GC)
+Elo  <- loess(heteroBig$E~heteroBig$GC)
+PFlo <- loess(heteroBig$PF~heteroBig$GC)
+CTCFlo <- loess(heteroBig$CTCF~heteroBig$GC)
+Ttlo <- loess(heteroBig$T~heteroBig$GC)
+TSSlo <- loess(heteroBig$TSS~heteroBig$GC)
+WElo <- loess(heteroBig$WE~heteroBig$GC)
+
+
+
+# we need to get bins that have chromatin status included 
+
+
+colnames(intergenic_chromatin$counts)[5:ncol(intergenic_chromatin$counts)]
+
+R <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="R", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+E <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="E", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+PF <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="PF", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+CTCF <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="CTCF", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+Tt <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="T", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+TSS <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="TSS", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+WE <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="WE", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
 
 
 
 
+layout(matrix(c(1,2), nrow=1))
+
+par(mar=c(5,5,5,0))
+plot(-(sqrt(100001:1)),((R$rawRepCov5/R$baseFreq5prime) - predict(Rlo, gcRate5)) + R$p, type = "l", ylim = c(0,1), ylab = "",xaxt="n", xlab = "")
+lines(-(sqrt(100001:1)),((E$rawRepCov5/E$baseFreq5prime)- predict(Elo, gcRate5)) + E$p, col = 2)
+lines(-(sqrt(100001:1)),((PF$rawRepCov5/PF$baseFreq5prime)- predict(PFlo, gcRate5)) + PF$p, col = 3)
+lines(-(sqrt(100001:1)),((CTCF$rawRepCov5/CTCF$baseFreq5prime)- predict(CTCFlo, gcRate5)) + CTCF$p, col = 4)
+lines(-(sqrt(100001:1)),((Tt$rawRepCov5/Tt$baseFreq5prime)- predict(Ttlo, gcRate5)) + Tt$p, col = 5)
+lines(-(sqrt(100001:1)),((TSS$rawRepCov5/TSS$baseFreq5prime)- predict(TSSlo, gcRate5)) + TSS$p, col = 6)
+lines(-(sqrt(100001:1)),((WE$rawRepCov5/WE$baseFreq5prime)- predict(WElo, gcRate5)) + WE$p, col = 7)
+par(new=TRUE)
+new_L1_Z <- (new_L1$rawRepCov5/new_L1$baseFreq5prime - predict(new_L1Mod, gcRate5))   / ((1 * sqrt(n5 * predict(new_L1Mod, gcRate5) *  (1 - predict(new_L1Mod, gcRate5))))/n5)
+plot(-(sqrt(100001:1)), new_L1_Z, ylim = c(-10,10) , col = 8, type = "l", axes = FALSE, ylab = "", xlab = "")
+abline(h=2, lty=2)
+abline(h=-2, lty=2)
+
+axis(1,at = seq(0,-350, by = -50), labels = seq(0,350, by = 50)^2)
 
 
+
+par(mar=c(5,0,5,5))
+
+plot((sqrt(1:100001)),((R$rawRepCov3/R$baseFreq3prime)- predict(Rlo, gcRate3)) + R$p, type = "l", ylim = c(0,1), xaxt = "n", yaxt="n", ylab = "n", xlab = "")
+lines((sqrt(1:100001)),((E$rawRepCov3/E$baseFreq3prime)- predict(Elo, gcRate3)) + E$p, col = 2)
+lines((sqrt(1:100001)),((PF$rawRepCov3/PF$baseFreq3prime)- predict(PFlo, gcRate3)) + PF$p, col = 3)
+lines((sqrt(1:100001)),((CTCF$rawRepCov3/CTCF$baseFreq3prime)- predict(CTCFlo, gcRate3)) + CTCF$p, col = 4)
+lines((sqrt(1:100001)),((Tt$rawRepCov3/Tt$baseFreq3prime)- predict(Ttlo, gcRate3)) + Tt$p, col = 5)
+lines((sqrt(1:100001)),((TSS$rawRepCov3/TSS$baseFreq3prime)- predict(TSSlo, gcRate3)) + TSS$p, col = 6)
+lines((sqrt(1:100001)),((WE$rawRepCov3/WE$baseFreq3prime)- predict(WElo, gcRate3)) + WE$p, col = 7)
+par(new=TRUE)
+new_L1_Z <- (new_L1$rawRepCov3/new_L1$baseFreq3prime - predict(new_L1Mod, gcRate3))   / ((1 * sqrt(n3 * predict(new_L1Mod, gcRate3) *  (1 - predict(new_L1Mod, gcRate3))))/n3)
+plot((sqrt(1:100001)),(new_L1_Z), ylim = c(-10,10)  , col = 8, type = "l",xlab = "", axes=FALSE, ylab = "")
+abline(h=2, lty=2)
+abline(h=-2, lty=2)
+
+axis(1,at = seq(0,350, by = 50), labels = seq(0,350, by = 50)^2)
+axis(4,at=seq(-10,10), labels=seq(-10,10))
 
 
 
 
 
 # how can we have TEs with less than the expected TE rate the whole time 
-
+## so need to proberly normalize for GC content
+## lets get the rolling windo wto work properly
 
 
 
@@ -324,8 +411,8 @@ minRepCov <- 5000
 maxRepCov <- 7000
 lenChoice = 100000
 repChoice <- "L1PA"
-TEintergenic <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=intergenic_reps$counts,repList=rep, refgene=refgene, type= "intergenic",minBinSize=minS, maxBinSize=maxS,minRepCov=minRepCov, maxRepCov=maxRepCov)
-TEintron <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice=repChoice, repBins=intron_reps$counts,repList=rep, refgene=refgene, type= "intron", minBinSize=minS, maxBinSize=maxS,minRepCov=minRepCov, maxRepCov=maxRepCov)
+TEintergenic <- covCalcPlot5prime3prime(repType = "repeats",lenChoice=lenChoice,repChoice=repChoice, repBins=intergenic_reps$counts,repList=rep, refgene=refgene, type= "intergenic",minBinSize=minS, maxBinSize=maxS,minRepCov=minRepCov, maxRepCov=maxRepCov)
+TEintron <- covCalcPlot5prime3prime(repType = "repeats",lenChoice=lenChoice,repChoice=repChoice, repBins=intron_reps$counts,repList=rep, refgene=refgene, type= "intron", minBinSize=minS, maxBinSize=maxS,minRepCov=minRepCov, maxRepCov=maxRepCov)
 
 logCoordinates <- c(-(log10(1:length(TEintergenic$zRepCov5))[length(TEintergenic$zRepCov5):1]), 0, log10(1:length(TEintergenic$zRepCov3)))
 Coordinates <- -(length(TEintergenic$zRepCov5)):length(TEintergenic$zRepCov3)

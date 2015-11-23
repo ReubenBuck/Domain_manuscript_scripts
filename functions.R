@@ -790,14 +790,23 @@ resetPar <- function() {
 }
 
 
-binSort <- function(rep, bins, TE.names){
+# defult bin sort is repeats
+binSort <- function(rep, bins, TE.names, repType ="repeats"){
   bin.gr <- GRanges(seqnames=Rle(bins$chr),
                     ranges = IRanges(start=bins$start, end = bins$end - 1))
   
   for(te in 1:length(TE.names)){
     te.gr <- rep[[TE.names[te]]]
-    GR <- GRanges(seqnames = Rle(te.gr$genoName),
+    if(repType == "repeats"){
+      GR <- GRanges(seqnames = Rle(te.gr$genoName),
                   ranges = IRanges(start = te.gr$genoStart, end = te.gr$genoEnd))
+    }else if(repType == "chromatin"){
+      GR <- GRanges(seqnames = Rle(te.gr$chrom),
+                    ranges = IRanges(start = te.gr$chromStart, end = te.gr$chromEnd))
+    }else{
+      stop("no repType")
+    }
+    
     
     # here we can do repeat coverage 
     OL <- intersect(x=bin.gr, y=GR)
@@ -1294,7 +1303,7 @@ covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList ,
   
   refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
   
-  #repBins <- repBins[repBins[,repChoice] > 0, c("chr", "start", "end", "Known", repChoice)]
+
   repBins <- repBins[, c("chr", "start", "end", "Known", repChoice)]
   
   if(!is.null(maxBinSize)){
@@ -1303,8 +1312,6 @@ covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList ,
   if(!is.null(minBinSize)){
     repBins <- repBins[repBins$end - repBins$start + 1 > minBinSize,]
   }
-  repBins2 <- repBins
-  
   colnames(repBins)[5] = "repCov"
   if(!is.null(maxRepCov)){
     repBins <- repBins[repBins$repCov < maxRepCov,]
@@ -1313,12 +1320,13 @@ covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList ,
     repBins <- repBins[repBins$repCov > minRepCov,]
   }
   
-  if(repType = "repeats"){
+  
+  
+  if(repType == "repeats"){
     repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$genoName),
                      ranges = IRanges(start=repList[[repChoice]]$genoStart, end=repList[[repChoice]]$genoEnd)
     )
-  }
-  if(repType = "chromatin"){
+  }else if(repType == "chromatin"){
     repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$chrom),
                      ranges = IRanges(start=repList[[repChoice]]$chromStart, end=repList[[repChoice]]$chromEnd)
     )
@@ -1408,9 +1416,6 @@ covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList ,
     if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
       stop("strand confusion in downstream intron region")
     }
-    
-    
-    
   }else{
     stop("type needs to be intron or intergenic")
   }
@@ -1880,7 +1885,7 @@ LocalGClevel <- function(maxLen, repChoice,repBins,genome,repList){
 
 
 
-localGCgenome <- function(repList, binSize, sampSize, genome){
+localGCgenome <- function(repList, binSize, sampSize, genome, repType){
   
   library(BSgenome)
   bsGenome <- available.genomes()[grep(genome,available.genomes())]
@@ -1897,7 +1902,7 @@ localGCgenome <- function(repList, binSize, sampSize, genome){
   
   
   bin.samp <- bins[sample(1:nrow(bins),sampSize),]
-  bin.sort = binSort(rep=repList, bins=bin.samp,TE.names=names(repList))
+  bin.sort = binSort(rep=repList, bins=bin.samp,TE.names=names(repList), repType = repType)
   bin.samp = bin.sort$rates
   bin.samp[,names(repList)] = bin.sort$rates[,names(repList)]/10000
   
