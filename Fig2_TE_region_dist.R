@@ -90,11 +90,9 @@ bins_intron$Knonw[gapOl[,1]] <- bins_intron$Knonw[gapOl[,1]] - width(gap.int)[ga
 rep = rep_info(spec1=spec1,genome=genome)
 # sort into intergenic bins and intronic bins
 intergenic_reps <- binSort(rep=rep, bins=bins_gene_gap, TE.names=names(rep))
-
 intron_reps <- binSort(rep=rep, bins=bins_intron, TE.names=names(rep))
 
 intergenic_chromatin <- binSort(rep = `H1-hESC`, bins = bins_gene_gap, TE.names = names(`H1-hESC`), repType = "chromatin")
-
 intron_chromatin <- binSort(rep = `H1-hESC`, bins = bins_intron, TE.names = names(`H1-hESC`), repType = "chromatin")
 
 #interesting that intervals with repeats in them tend to be over 1000 in length
@@ -103,32 +101,9 @@ intergenicSample <- sample(x = 1:nrow(intergenic_reps$counts), size = 10000, rep
 intronSample <- sample(x = 1:nrow(intron_reps$counts), size = 10000, replace = FALSE)
 
 
-TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=100000,repChoice="L1PA",repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome,repList=rep)
+TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=60000,repChoice="L1PA",repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome,repList=rep)
+TEs_intron <- covCalcPlot5prime3primeGC(lenChoice=40000,repChoice="L1PA",repBins=intron_reps$counts[intronSample,],refgene=refgene,type="intron",genome=genome,repList=rep)
 
-TEs_intron <- covCalcPlot5prime3primeGC(lenChoice=100000,repChoice="L1PA",repBins=intron_reps$counts[intronSample,],refgene=refgene,type="intron",genome=genome,repList=rep)
-
-Intergenic_break <- LocalGClevel(maxLen = 20000,repBins = intergenic_reps$counts[intergenicSample,], repChoice = "L1PA", genome = genome,repList = rep)
-Intron_break <- LocalGClevel(maxLen = 20000,repBins = intron_reps$counts[intronSample,], repChoice = "L1PA", genome = genome,repList = rep)
-
-
-
-# 
-# Intron_breakSamp <- Intron_break[sample(1:nrow(Intron_break),size = 1000, replace=FALSE),]
-# plot((Intron_breakSamp$GC), Intron_breakSamp$cov/(Intron_breakSamp$end - Intron_breakSamp$start + 1), pch = 16, cex =.2, type = "n")
-# 
-# 
-# for(i in 1:10){
-# Intron_breakSamp <- Intron_break[Intron_break$width>10000,][sample(1:nrow(Intron_break[Intron_break$width>10000,]),size = 1000, replace=FALSE),]
-# points(Intron_breakSamp$GC, Intron_breakSamp$cov/Intron_breakSamp$width, pch = 16, cex =.1)
-# IntronModLO <- loess((Intron_breakSamp$cov/Intron_breakSamp$width) ~ Intron_breakSamp$GC)
-# lines(seq(0,1,.01), predict(IntronModLO, newdata = seq(0,1,.01)), lty = 2, lwd = 2, col =2)
-# 
-# Intergenic_breakSamp <- Intergenic_break[Intergenic_break$width>10000,][sample(1:nrow(Intergenic_break[Intergenic_break$width>10000,]),size = 1000, replace=FALSE),]
-# points(Intergenic_breakSamp$GC, Intergenic_breakSamp$cov/Intergenic_breakSamp$width, pch = 16, cex =.1, col = 3)
-# IntergenicModLO <- loess((Intergenic_breakSamp$cov/Intergenic_breakSamp$width) ~ Intergenic_breakSamp$GC)
-# lines(seq(0,1,.01), predict(IntergenicModLO, newdata = seq(0,1,.01)), lty = 2, lwd = 2, col =4)
-# 
-# }
 
 
 ###### 
@@ -168,10 +143,21 @@ joinRep <- list(old_L1 = rbind(rep$L1ME, rep$L1MD, rep$L1MC, rep$L1MB),
                 Alu = rbind(rep$AluJ, rep$AluS, rep$AluY),
                 Ancient = rbind(rep$MIR, rep$L2))
 
+joinRepChromatin <- c(joinRep, `H1-hESC`)
+
+repTypes <- c(rep("repeats", length(joinRep)), rep("chromatin", length(`H1-hESC`)))
+joinSampGenomeBig <- localGCgenome(repList = joinRepChromatin,binSize = 20000,sampSize = 5000, genome = genome, repType = repTypes)
+joinSampGenomeSmall <- localGCgenome(repList = joinRepChromatin,binSize = 1000,sampSize = 5000, genome = genome, repType = repTypes)
+joinSampGenomeMed <- localGCgenome(repList = joinRepChromatin,binSize = 10000,sampSize = 5000, genome = genome, repType = repTypes)
+joinSampGenomeLarge <- localGCgenome(repList = joinRepChromatin,binSize = 30000,sampSize = 5000, genome = genome, repType = repTypes)
 
 
-joinSampGenomeBig <- localGCgenome(repList = joinRep,binSize = 20000,sampSize = 5000, genome = genome)
-joinSampGenomeSmall <- localGCgenome(repList = joinRep,binSize = 1000,sampSize = 5000, genome = genome)
+
+# lets also look at motifs 
+
+
+
+
 
 
 
@@ -195,6 +181,74 @@ AncientMod <- loess(joinSampGenomeSmall$Ancient ~ joinSampGenomeSmall$GC)
 lines(seq(0,1,0.01), predict(AncientMod, newdata = seq(0,1,0.01)), col = 2, lwd = 2)
 
 
+bigPca <- prcomp(joinSampGenomeBig[,5:ncol(joinSampGenomeBig)], scale. = T)
+reuben.biplot(bigPca$x,bigPca$rotation,text.col = 2,cex = .5)
+smallPca <- prcomp(joinSampGenomeSmall[,9:ncol(joinSampGenomeSmall)], scale. = F)
+reuben.biplot(smallPca$x,smallPca$rotation,text.col = 2,cex = .5)
+L1_pca <- prcomp(joinSampGenomeBig[,c("new_L1", "GC", "R")], scale.=T,center = F)
+reuben.biplot(L1_pca$x[,c(1,3)], L1_pca$rotation[,c(1,3)], text.col = 2,cex = .5)
+
+bigMotif <- LocalMotifLevel(repBins = joinSampGenomeBig,genome = genome, motif = "TTTTAA")
+smallMotif <- LocalMotifLevel(repBins = joinSampGenomeSmall,genome = genome, motif = "TTTTAA")
+medMotif <- LocalMotifLevel(repBins = joinSampGenomeMed,genome = genome, motif = "TTTTAA")
+largeMotif <- LocalMotifLevel(repBins = joinSampGenomeLarge,genome = genome, motif = "TTTTAA")
+
+
+y = bigMotif$motif/20000
+x = joinSampGenomeBig$GC*100
+plot(x,y,  pch = 16, cex = .5)
+lmPolyBig <- lm(y ~ x+ I(x^2))
+lines(seq(0,100,1), predict(object = lmPolyBig, data.frame(x = seq(0,100,1))), col = "red",lwd = 2)
+
+y = largeMotif$motif/30000
+x = joinSampGenomeLarge$GC*100
+plot(x,y,  pch = 16, cex = .5)
+lmPolyLarge <- lm(y ~ x+ I(x^2))
+lines(seq(0,100,1), predict(object = lmPolyLarge, data.frame(x = seq(0,100,1))), col = "red",lwd = 2)
+
+
+y = medMotif$motif/10000
+x = joinSampGenomeMed$GC*100
+plot(x,y,  pch = 16, cex = .5)
+lmPolyMed <- lm(y ~ x+ I(x^2))
+lines(seq(0,100,1), predict(object = lmPolyMed, data.frame(x = seq(0,100,1))), col = "red",lwd = 2)
+
+
+y = smallMotif$motif/1000
+x = joinSampGenomeSmall$GC*100
+plot(x,y,  pch = 16, cex = .5)
+lmPolySmall <- lm(y ~ x + I(x^2))
+lines(seq(0,100,1), predict(object = lmPolySmall, data.frame(x = seq(0,100,1))), col = "red",lwd = 2)
+
+
+plot(1,1,ylim = c(0,.006), xlim = c(30,60), type = "n", xlab = "GC%", ylab = "insertion motif fraction")
+y = c(predict(object = lmPolySmall, data.frame(x = seq(0,100,1))) - summary.lm(lmPolySmall)$sigma,
+      predict(object = lmPolySmall, data.frame(x = seq(0,100,1)))[101:1] + summary.lm(lmPolySmall)$sigma)
+x = c(seq(0,100,1), seq(0,100,1)[101:1])
+polygon(x=x,y=y, col = "red", density = 30)
+lines(seq(0,100,1), predict(object = lmPolySmall, data.frame(x = seq(0,100,1))), col = "red",lwd = 3)
+y = c(predict(object = lmPolyMed, data.frame(x = seq(0,100,1))) - summary.lm(lmPolyMed)$sigma,
+      predict(object = lmPolyMed, data.frame(x = seq(0,100,1)))[101:1] + summary.lm(lmPolyMed)$sigma)
+x = c(seq(0,100,1), seq(0,100,1)[101:1])
+polygon(x=x,y=y, col = "darkgreen", density = 30)
+lines(seq(0,100,1), predict(object = lmPolyMed, data.frame(x = seq(0,100,1))), col = "darkgreen",lwd = 3)
+y = c(predict(object = lmPolyBig, data.frame(x = seq(0,100,1))) - summary.lm(lmPolyBig)$sigma,
+      predict(object = lmPolyBig, data.frame(x = seq(0,100,1)))[101:1] + summary.lm(lmPolyBig)$sigma)
+x = c(seq(0,100,1), seq(0,100,1)[101:1])
+polygon(x=x,y=y, col = "blue", density = 30)
+lines(seq(0,100,1), predict(object = lmPolyLarge, data.frame(x = seq(0,100,1))), col = "blue",lwd = 3)
+y = c(predict(object = lmPolyLarge, data.frame(x = seq(0,100,1))) - summary.lm(lmPolyLarge)$sigma,
+      predict(object = lmPolyLarge, data.frame(x = seq(0,100,1)))[101:1] + summary.lm(lmPolyLarge)$sigma)
+x = c(seq(0,100,1), seq(0,100,1)[101:1])
+polygon(x=x,y=y, col = "orange", density = 30)
+lines(seq(0,100,1), predict(object = lmPolyLarge, data.frame(x = seq(0,100,1))), col = "orange",lwd = 3)
+
+legend("topright", legend = c(1000,10000,20000,30000), fill = c("red", "darkgreen", "blue", "orange"),title = "bin size")
+
+
+
+
+
 
 
 minS <- NULL
@@ -202,7 +256,7 @@ maxS <- NULL
 minRepCov <- NULL
 maxRepCov <- NULL
 lenChoice = 100000
-genome_type <- "intergenic"
+genome_type <- "intron"
 binnedGenome <- get(paste(genome_type , "JoinedFam", sep = ""))
 
 

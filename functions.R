@@ -797,10 +797,10 @@ binSort <- function(rep, bins, TE.names, repType ="repeats"){
   
   for(te in 1:length(TE.names)){
     te.gr <- rep[[TE.names[te]]]
-    if(repType == "repeats"){
+    if(repType[te] == "repeats"){
       GR <- GRanges(seqnames = Rle(te.gr$genoName),
                   ranges = IRanges(start = te.gr$genoStart, end = te.gr$genoEnd))
-    }else if(repType == "chromatin"){
+    }else if(repType[te] == "chromatin"){
       GR <- GRanges(seqnames = Rle(te.gr$chrom),
                     ranges = IRanges(start = te.gr$chromStart, end = te.gr$chromEnd))
     }else{
@@ -1923,6 +1923,45 @@ localGCgenome <- function(repList, binSize, sampSize, genome, repType){
   return(bin.samp)
   
 }
+
+
+
+# motif analysis
+
+LocalMotifLevel <- function(repBins,genome,motif){
+  
+  
+  library(BSgenome)
+  bsGenome <- available.genomes()[grep(genome,available.genomes())]
+  bsGenome <- bsGenome[-(grep("masked", bsGenome))]
+  library(bsGenome, character.only=TRUE)
+  bsSpec <- get(strsplit(bsGenome,split="\\.")[[1]][2])
+  
+  Region = repBins[,c("chr", "start", "end")]
+  chromos <- as.character(unique(Region$chr))
+  Region$motif <- rep(NA, nrow(Region))
+  motif <- DNAString(motif)
+  
+
+  
+  for(i in 1:length(chromos)){
+    Seq.set=DNAStringSet(bsSpec[[chromos[i]]], 
+                         start=Region$start[Region$chr == chromos[i]], 
+                         end=Region$end[Region$chr == chromos[i]])
+    patternContent <- unlist(lapply(vmatchPattern(pattern = motif,subject = Seq.set), length))
+    patternContentRC <- unlist(lapply(vmatchPattern(pattern = reverseComplement(motif),subject = Seq.set), length))
+    
+    
+    Region$motif[Region$chr == chromos[i]] <- patternContent + patternContentRC
+    print(chromos[i])
+  }
+  
+  
+  Region$width <- Region$end - Region$start + 1
+  #### here we get the final piece of the puzzle 
+  return(Region)
+}
+
 
 
 
