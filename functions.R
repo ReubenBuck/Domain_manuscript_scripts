@@ -1591,11 +1591,11 @@ filterIntron <- function(refgene){
 ### This will be showing us where TEs accumulate in the genome 
 ### Rather than where do TEs accumulate in this region. 
 
+# cahnge this function so we don't have to worry about the repeats 
 
-covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList , 
-                                      refgene , type ,genome=genome ,minRepCov = NULL, maxRepCov = NULL, 
-                                      minRepSize = NULL, maxRepSize = NULL, minBinSize = NULL, 
-                                      maxBinSize = NULL){
+
+covCalcPlot5prime3primeGC <- function(lenChoice, repBins  , refgene , type ,genome=genome ,
+                                      minBinSize = NULL, maxBinSize = NULL){
   #### CG stats
   
   library(BSgenome)
@@ -1608,7 +1608,7 @@ covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList ,
   refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
   
 #  repBins <- repBins[repBins[,repChoice] > 0, c("chr", "start", "end", "Known", repChoice)]
-  repBins <- repBins[, c("chr", "start", "end", "Known", repChoice)]
+  repBins <- repBins[, c("chr", "start", "end", "Known")]
   
   if(!is.null(maxBinSize)){
     repBins <- repBins[repBins$end - repBins$start + 1 < maxBinSize,]
@@ -1617,24 +1617,8 @@ covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList ,
     repBins <- repBins[repBins$end - repBins$start + 1 > minBinSize,]
   }
   
-  colnames(repBins)[5] = "repCov"
-  if(!is.null(maxRepCov)){
-    repBins <- repBins[repBins$repCov < maxRepCov,]
-  }
-  if(!is.null(minRepCov)){
-    repBins <- repBins[repBins$repCov > minRepCov,]
-  }
+ 
   
-  repGR <- GRanges(seqnames=Rle(repList[[repChoice]]$genoName),
-                   ranges = IRanges(start=repList[[repChoice]]$genoStart, end=repList[[repChoice]]$genoEnd)
-  )
-  
-  if(!is.null(maxRepSize)){
-    repGR <- repGR[width(repGR) < maxRepSize,]
-  }
-  if(!is.null(minRepSize)){
-    repGR <- repGR[width(repGR) > minRepSize,]
-  }
   seqLen <- lenChoice
   names(seqLen) <- "seq"
   
@@ -1643,20 +1627,15 @@ covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList ,
   us.bins <- data.frame(chr = repBins$chr, start = repBins$start, end = us.ends)
   us.bins.gr <- GRanges(seqnames=Rle(us.bins$chr), 
                         ranges = IRanges(start=us.bins$start, end = us.bins$end))
-  us.rep.int <- intersect(repGR, us.bins.gr)
-  us.Ol <- as.matrix(findOverlaps(us.bins.gr, us.rep.int))
-  us.cov <- data.frame(start = start(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1, 
-                       end =end(us.rep.int[us.Ol[,2]]) - start(us.bins.gr[us.Ol[,1]]) + 1)
+  # I think there might be a bug here, only things with an element in them are remebered
+  # may be able to fix these temporarily by generating a rep object that overlaps with all the ranges
+  # or i could give it an overhaul and simplify it to just find the GC contnet of all bins
   
   ds.starts <- as.integer(repBins$end - ((repBins$end - repBins$start)/2))
   ds.starts[repBins$end - ds.starts + 1> lenChoice] <- repBins$end[repBins$end - ds.starts + 1> lenChoice] - lenChoice
   ds.bins <- data.frame(chr = repBins$chr, start = ds.starts, end = repBins$end)
   ds.bins.gr <- GRanges(seqnames=Rle(ds.bins$chr), 
                         ranges = IRanges(start=ds.bins$start, end = ds.bins$end))
-  ds.rep.int <- intersect(repGR, ds.bins.gr)  
-  ds.Ol <- as.matrix(findOverlaps(ds.bins.gr, ds.rep.int))
-  ds.cov <- data.frame(start =   (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (start(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1 ,
-                       end =  (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (end(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1)
   
   if(type == "intergenic"){
     us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, maxgap=1))
@@ -1714,20 +1693,20 @@ covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList ,
   ### everything that is minus we have to reverse the coordinates 
   # upstream region of intergenic in plus strand is the 3prime region of a gene
   #us.Ol[,1] tells us which bin the repeats belong to
-  prime3_us <- us.cov[us.Ol[us.Ol[,1] %in% us.plus,2],]
-  prime5_us <- data.frame(start = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$end + 1, 
-                          end = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$start + 1)
-  
-  prime3_ds <- data.frame(start = lenChoice + 1- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$end + 1, 
-                          end = lenChoice + 1 - ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$start + 1)
-  prime5_ds <- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.plus,2],]
-  
-  prime5 <- rbind(prime5_ds, prime5_us)
-  prime3 <- rbind(prime3_ds, prime3_us)
-  
-  prime5.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime5$start, end = prime5$end), seqlengths = seqLen + 1)
-  prime3.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime3$start, end = prime3$end), seqlengths = seqLen + 1)
-  
+#   prime3_us <- us.cov[us.Ol[us.Ol[,1] %in% us.plus,2],]
+#   prime5_us <- data.frame(start = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$end + 1, 
+#                           end = lenChoice + 1 - us.cov[us.Ol[us.Ol[,1] %in% us.minus,2],]$start + 1)
+#   
+#   prime3_ds <- data.frame(start = lenChoice + 1- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$end + 1, 
+#                           end = lenChoice + 1 - ds.cov[ds.Ol[ds.Ol[,1] %in% ds.minus,2],]$start + 1)
+#   prime5_ds <- ds.cov[ds.Ol[ds.Ol[,1] %in% ds.plus,2],]
+#   
+#   prime5 <- rbind(prime5_ds, prime5_us)
+#   prime3 <- rbind(prime3_ds, prime3_us)
+#   
+#   prime5.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime5$start, end = prime5$end), seqlengths = seqLen + 1)
+#   prime3.cov.r <- GRanges(seqnames=Rle("seq"), ranges = IRanges(start=prime3$start, end = prime3$end), seqlengths = seqLen + 1)
+#   
   # GC coverage calc
   All.seq<- DNAStringSet()
   prime5grDS <- ds.bins[ds.plus,]
@@ -1795,10 +1774,10 @@ covCalcPlot5prime3primeGC <- function(lenChoice, repChoice, repBins , repList ,
   
   
   
-  output = list(rawRepCov5 = as.numeric(coverage(prime5.cov.r)$seq),
-                rawRepCov3 = as.numeric(coverage(prime3.cov.r)$seq),
-                totalRep = sum(repBins$repCov),
-                totalCov = sum(repBins$end - repBins$start + 1),
+  output = list(#rawRepCov5 = as.numeric(coverage(prime5.cov.r)$seq),
+                #rawRepCov3 = as.numeric(coverage(prime3.cov.r)$seq),
+                #totalRep = sum(repBins$repCov),
+                #totalCov = sum(repBins$end - repBins$start + 1),
                 baseFreq5prime = prime5stepRes, 
                 baseFreq3prime = prime3stepRes,
                 prime5gc = prime5gcCov,

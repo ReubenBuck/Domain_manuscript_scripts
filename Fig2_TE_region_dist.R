@@ -8,6 +8,10 @@
 # on both fractions theres constraint pertaining to the amount but the constraint on position is different
 
 
+#### maybe tomorrow i can compare both methods
+### now that I've found a way of normalising for this
+# still havnt been able to get the 
+
 
 
 
@@ -97,12 +101,12 @@ intron_chromatin <- binSort(rep = `H1-hESC`, bins = bins_intron, TE.names = name
 
 #interesting that intervals with repeats in them tend to be over 1000 in length
 
-intergenicSample <- sample(x = 1:nrow(intergenic_reps$counts), size = 10000, replace = FALSE)
-intronSample <- sample(x = 1:nrow(intron_reps$counts), size = 10000, replace = FALSE)
+intergenicSample <- sample(x = 1:nrow(intergenic_reps$counts), size = 1000, replace = FALSE)
+intronSample <- sample(x = 1:nrow(intron_reps$counts), size = 1000, replace = FALSE)
 
 
-TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=60000,repChoice="L1PA",repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome,repList=rep)
-TEs_intron <- covCalcPlot5prime3primeGC(lenChoice=40000,repChoice="L1PA",repBins=intron_reps$counts[intronSample,],refgene=refgene,type="intron",genome=genome,repList=rep)
+TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=60000,repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome)
+TEs_intron <- covCalcPlot5prime3primeGC(lenChoice=40000,repBins=intron_reps$counts[intronSample,],refgene=refgene,type="intron",genome=genome)
 
 
 
@@ -149,15 +153,11 @@ repTypes <- c(rep("repeats", length(joinRep)), rep("chromatin", length(`H1-hESC`
 joinSampGenomeBig <- localGCgenome(repList = joinRepChromatin,binSize = 20000,sampSize = 5000, genome = genome, repType = repTypes)
 joinSampGenomeSmall <- localGCgenome(repList = joinRepChromatin,binSize = 1000,sampSize = 5000, genome = genome, repType = repTypes)
 joinSampGenomeMed <- localGCgenome(repList = joinRepChromatin,binSize = 10000,sampSize = 5000, genome = genome, repType = repTypes)
-joinSampGenomeLarge <- localGCgenome(repList = joinRepChromatin,binSize = 30000,sampSize = 5000, genome = genome, repType = repTypes)
+joinSampGenomeLarge <- localGCgenome(repList = joinRepChromatin,binSize = 30000,sampSize = 10000, genome = genome, repType = repTypes)
 
 
 
 # lets also look at motifs 
-
-
-
-
 
 
 
@@ -179,6 +179,53 @@ lines(seq(0,1,0.01), predict(AluMod, newdata = seq(0,1,0.01)), col = 2, lwd = 2)
 plot(joinSampGenomeSmall$GC, joinSampGenomeSmall$Ancient, main = "Ancient", pch = 16, cex = .2, xlab = "GC content", ylab = "TE fraction", ylim = c(0,1))
 AncientMod <- loess(joinSampGenomeSmall$Ancient ~ joinSampGenomeSmall$GC)
 lines(seq(0,1,0.01), predict(AncientMod, newdata = seq(0,1,0.01)), col = 2, lwd = 2)
+
+
+plot(joinSampGenomeBig$R, joinSampGenomeBig$GC, pch = 16, cex = .2)
+Rlo <- loess(joinSampGenomeBig$GC ~ joinSampGenomeBig$R)
+lines(seq(0,1,0.01), predict(Rlo, newdata = seq(0,1,0.01)), col = 2, lwd = 2)
+
+GC.adj <- (joinSampGenomeBig$GC - predict(Rlo, joinSampGenomeBig$R) ) + mean(joinSampGenomeBig$GC)
+
+hist(GC.adj)
+
+plot(1,1,xlim = c(.3,.5), ylim = c(0,1), xlab = "GC fraction", ylab = "TE fraction", main = "heterochromatin adjusted GC")
+
+points(joinSampGenomeBig$GC, joinSampGenomeBig$new_L1, pch = 16, cex = .2, col = "darkred")
+L1lo <- loess(joinSampGenomeBig$new_L1 ~ joinSampGenomeBig$GC)
+lines(seq(0,1,0.01), predict(L1lo, newdata = seq(0,1,0.01)), col = "darkred", lwd = 4)
+
+points(joinSampGenomeBig$GC, joinSampGenomeBig$Alu, pch = 16, cex = .2, col = "darkgreen")
+Alulo <- loess(joinSampGenomeBig$Alu ~ joinSampGenomeBig$GC)
+lines(seq(0,1,0.01), predict(Alulo, newdata = seq(0,1,0.01)), col = "darkgreen", lwd = 4)
+
+
+points(GC.adj, joinSampGenomeBig$new_L1, pch = 16, cex = .2, col = 2)
+L1lo <- loess(joinSampGenomeBig$new_L1 ~ GC.adj)
+lines(seq(0,1,0.01), predict(L1lo, newdata = seq(0,1,0.01)), col = 2, lwd = 4)
+
+points(GC.adj, joinSampGenomeBig$Alu, pch = 16, cex = .2, col = 3)
+Alulo <- loess(joinSampGenomeBig$Alu ~ GC.adj)
+lines(seq(0,1,0.01), predict(Alulo, newdata = seq(0,1,0.01)), col = 3, lwd = 4)
+
+legend("topright", legend = c("adjusted GC new_L1", "adjusted GC Alu", "raw GC new_L1", "raw GC Alu"),
+       fill = c("red", "green", "darkred", "darkgreen"))
+abline(v = mean(joinSampGenomeBig$GC))
+abline(v = mean(GC.adj))
+
+
+# we known TE content changes as a result of GC,
+# but also GC changes as a result of hterochromatin 
+# if heterochromatin adjustments are able to stabalise GC it works out well
+
+# so now we can normalize for this 
+# two step normalization, this should reval what is happening
+
+
+
+# if we balance the GC content based on the chromatin state 
+# then we can balance the TE content on the new GC. 
+
 
 
 bigPca <- prcomp(joinSampGenomeBig[,5:ncol(joinSampGenomeBig)], scale. = T)
@@ -256,7 +303,7 @@ maxS <- NULL
 minRepCov <- NULL
 maxRepCov <- NULL
 lenChoice = 100000
-genome_type <- "intron"
+genome_type <- "intergenic"
 binnedGenome <- get(paste(genome_type , "JoinedFam", sep = ""))
 
 
@@ -276,7 +323,7 @@ Coordinates <- -((lenChoice + 1))
 
 TEset <- get(paste("TEs_", genome_type,sep=""))
 
-k = 1000
+k = 10000
 GCsum3 <- rollsum(TEset$prime3gc,k = k, fill="extend", align = "center")
 baseSum3 <- rollsum(TEset$baseFreq3prime,k = k, fill="extend", align = "center")
 gcRate3 <- GCsum3/baseSum3
@@ -286,6 +333,8 @@ GCsum5 <- rollsum(TEset$prime5gc,k = k, fill="extend", align = "center")
 baseSum5 <- rollsum(TEset$baseFreq5prime,k = k, fill="extend", align = "center")
 gcRate5 <- GCsum5/baseSum5
 n5 = TEs_intergenic$baseFreq5prime
+
+
 
 ylims <- c(0,.2)
 
@@ -391,7 +440,20 @@ WElo <- loess(heteroBig$WE~heteroBig$GC)
 
 colnames(intergenic_chromatin$counts)[5:ncol(intergenic_chromatin$counts)]
 
-R <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="R", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+lenChoice = 60000
+
+R <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="R", repBins=intergenic_chromatin$counts[intergenicSample,],repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
+
+Rsum5 <- rollsum(R$rawRepCov5,k = k, fill="extend", align = "center")
+Rrate <- Rsum5/baseSum5
+
+gc5adj <- gcRate5 - predict(Rlo, Rrate)
+plot(gc5adj + mean(joinSampGenomeBig$GC), type = "l", ylim = c(0.3,0.6))
+
+lines(gcRate5,col = 2)
+
+
+
 E <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="E", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
 PF <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="PF", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
 CTCF <- covCalcPlot5prime3prime(lenChoice=lenChoice,repChoice="CTCF", repBins=intergenic_chromatin$counts,repList=`H1-hESC`, refgene=refgene, type= genome_type, repType = "chromatin")
