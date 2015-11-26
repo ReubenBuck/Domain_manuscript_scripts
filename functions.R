@@ -1943,6 +1943,64 @@ LocalMotifLevel <- function(repBins,genome,motif){
 
 
 
+rateRoller <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
+  
+  if(k%%2 != 1){
+    stop("k must be odd")
+  }
+  
+  GCsum3 <- rollsum(primeGC3,k = k, align = "center")
+  baseSum3 <- rollsum(primeBF3,k = k, align = "center")
+  
+  GCsum5 <- rollsum(primeGC5,k = k, align = "center")
+  baseSum5 <- rollsum(primeBF5,k = k, align = "center")
+  
+  roll3start <- roll3end <- roll5start <- roll5end <- roll3startGC <- roll3endGC <- roll5startGC <- roll5startGC <- roll5endGC <- rep(NA,k/2)
+  
+  for(i in 1:(k/2)){
+    roll3start[i] <- sum(primeBF3[1:(i+(i-1))])
+    roll3end[length(roll3end) - i + 1] <- sum(primeBF3[length(primeBF3):1][1:(i+(i-1))])
+    
+    roll5start[i] <- sum(primeBF5[1:(i+(i-1))])
+    roll5end[length(roll5end) - i +1 ] <- sum(primeBF5[length(primeBF5):1][1:(i+(i-1))])
+    
+    roll3startGC[i] <- sum(primeGC3[1:(i+(i-1))])
+    roll3endGC[length(roll3endGC) - i + 1] <- sum(primeGC3[length(primeGC3):1][1:(i+(i-1))])
+    
+    roll5startGC[i] <- sum(primeGC5[1:(i+(i-1))])
+    roll5endGC[length(roll5endGC) - i + 1] <- sum(primeGC5[length(primeGC5):1][1:(i+(i-1))])
+  }
+  
+  return(list(prime3gc = c(roll3startGC, GCsum3, roll3endGC)/c(roll3start, baseSum3, roll3end), 
+              prime5gc = c(roll5startGC, GCsum5, roll5endGC)/c(roll5start, baseSum5, roll5end)
+  ) 
+  )
+  
+}
+
+
+
+meanRoller <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
+  
+  if(k%%2 != 1){
+    stop("k must be odd")
+  }
+  
+  rate3 <- primeGC3/primeBF3
+  rate5 <- primeGC5/primeBF5
+  
+  Mrate3 <- rollmean(rate3,k = k, align = "center")
+  Mrate5 <- rollmean(rate5,k = k, align = "center")
+  rate3start <- rate3end <- rate5start <- rate5end <- rep(NA, k/2)
+  for(i in 1:(k/2)){
+    rate3start[i] <- mean(rate3[1:(i+(i-1))])
+    rate3end[length(rate3end) - i + 1] <- mean(rate3[length(rate3):1][1:(i+(i-1))])
+    rate5start[i] <- mean(rate5[1:(i+(i-1))])
+    rate5end[length(rate5end) - i + 1] <- mean(rate5[length(rate5):1][1:(i+(i-1))])
+  }
+  return(list(prime3gc = c(rate3start, Mrate3, rate3end), prime5gc=c(rate5start, Mrate5, rate5end)))
+}
+
 
 #######
 # #######  Functions 
