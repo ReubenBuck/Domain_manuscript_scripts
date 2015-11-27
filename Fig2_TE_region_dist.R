@@ -108,7 +108,7 @@ intronSample <- sample(x = 1:nrow(intron_reps$counts), size = 10000, replace = F
 intergenic_chromatinSamp <- intergenic_chromatin$counts[intergenicSample,]
 intron_chromatinSamp <- intron_chromatin$counts[intronSample,]
 
-TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=60000,repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome)
+TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=100000,repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome)
 TEs_intron <- covCalcPlot5prime3primeGC(lenChoice=40000,repBins=intron_reps$counts[intronSample,],refgene=refgene,type="intron",genome=genome)
 
 
@@ -167,6 +167,7 @@ joinSampGenomeMed <- localGCgenome(repList = joinRepChromatin,binSize = 10000,sa
 
 ### adjust GC contnent 
 layout(matrix(c(1,2)))
+par(mar=c(5,5,5,5))
 
 plot(joinSampGenomeMed$R, joinSampGenomeMed$GC, pch = 16, cex = .2)
 RgcLoMed <- loess(joinSampGenomeMed$GC ~ joinSampGenomeMed$R)
@@ -229,7 +230,7 @@ legend("topright", legend = c("Adjusted", "Raw"), fill = c(2,4), title = "GC dat
 
 genome_type <- "intergenic"
 if(genome_type == "intergenic"){
-  lenChoice = 60000
+  lenChoice = 100000
 }else if (genome_type == "intron"){
   lenChoice = 40000
 }
@@ -245,6 +246,7 @@ rChromatin <- covCalcPlot5prime3prime(lenChoice=lenChoice,
                              refgene=refgene, 
                              type= genome_type, 
                              repType = "chromatin")
+
 
 repChoice <- names(joinRep)
 for(i in repChoice){
@@ -269,13 +271,14 @@ meanRes.pre_5 <- predict(RgcLoMed,rChromatin$rawRepCov5/rChromatin$baseFreq5prim
 meanRes.adj_5 <- (meanRes$prime5gc - meanRes.pre_5) + mean(joinSampGenomeMed$GC)
 
 layout(matrix(c(1,2), nrow = 1))
+par(mar=c(5,5,5,5))
 plot(sqrtCoordinates,meanRes$prime5gc, type = "l", ylab = "GC fraction", ylim = c(.3,.6), main = "5 prime")
 lines(sqrtCoordinates,meanRes.pre_5, col = 2)
 lines(sqrtCoordinates,meanRes.adj_5, col = 4)
 par(new=TRUE)
 plot(sqrtCoordinates,rChromatin$rawRepCov5/TEset$baseFreq5prime, type = "l", ylab = "", xlab = "", yaxt = "n", col= 3, ylim = c(.3,1))
 axis(4,at = seq(0,1,.1), labels = seq(0,1,.1))
-legend("bottomleft", legend = c("raw GC","predicted GC" ,"adjusted GC", "heterochromatin"), fill = c(1,2,3,4), title = "GC data")
+legend("bottomleft", legend = c("raw GC","predicted GC" ,"adjusted GC", "heterochromatin"), fill = c(1,2,4,3), title = "GC data")
 
 plot(sqrt(1:(lenChoice+1)),meanRes$prime3gc, type = "l", ylab = "GC fraction",ylim = c(.3,.6) , main = "3 prime")
 lines(sqrt(1:(lenChoice+1)),meanRes.pre_3, col = 2)
@@ -301,7 +304,7 @@ ylims <- c(0,.2)
 #### the loop will start around here
 repChoice <- names(joinRep)
 
-te = 2
+te =2
 
 # i can probably change the MOD and gc rate depending on wheather i want to adjust chromatin a certain way
 element <- get(repChoice[te])
@@ -341,6 +344,7 @@ mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
 axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
 
 #### two different effects
+
 
 
 
