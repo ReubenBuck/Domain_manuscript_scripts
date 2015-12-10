@@ -791,18 +791,22 @@ resetPar <- function() {
 
 
 # defult bin sort is repeats
-binSort <- function(rep, bins, TE.names, repType ="repeats"){
+binSort <- function(repList, bins, TE.names, repType){
   bin.gr <- GRanges(seqnames=Rle(bins$chr),
                     ranges = IRanges(start=bins$start, end = bins$end - 1))
   
   for(te in 1:length(TE.names)){
-    te.gr <- rep[[TE.names[te]]]
+    print(TE.names[te])
     if(repType[te] == "repeats"){
+      te.gr <- repList[[TE.names[te]]]
       GR <- GRanges(seqnames = Rle(te.gr$genoName),
                   ranges = IRanges(start = te.gr$genoStart, end = te.gr$genoEnd))
     }else if(repType[te] == "chromatin"){
+      te.gr <- repList[[TE.names[te]]]
       GR <- GRanges(seqnames = Rle(te.gr$chrom),
                     ranges = IRanges(start = te.gr$chromStart, end = te.gr$chromEnd))
+    }else if(repType[te] == "GRange"){
+      GR <- repList[te]
     }else{
       stop("no repType")
     }
@@ -811,11 +815,14 @@ binSort <- function(rep, bins, TE.names, repType ="repeats"){
     # here we can do repeat coverage 
     OL <- intersect(x=bin.gr, y=GR)
     OL.f <- as.matrix(findOverlaps(bin.gr,OL))
+    if(length(OL.f) > 0){
+      OL.agg <- aggregate( x= width(OL[OL.f[,2]]) , by= list(OL.f[,1]), FUN=sum)
+      bins[OL.agg[,1],TE.names[te]] <- OL.agg[,2]
+      bins[is.na(bins[,TE.names[te]]),TE.names[te]] <- 0
+    }else{
+      bins[,TE.names[te]] <- 0
+    }
     
-    OL.agg <- aggregate( x= width(OL[OL.f[,2]]) , by= list(OL.f[,1]), FUN=sum)
-    
-    bins[OL.agg[,1],TE.names[te]] <- OL.agg[,2]
-    bins[is.na(bins[,TE.names[te]]),TE.names[te]] <- 0
   }
   
   # it might be a good idea to make sure to sort out the seqnames issue first
@@ -1991,6 +1998,313 @@ meanRoller <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
   }
   return(list(prime3gc = c(rate3start, Mrate3, rate3end), prime5gc=c(rate5start, Mrate5, rate5end)))
 }
+
+
+
+covImage <- function(lenChoice, repBins , repList ,chromList, 
+                     refgene , type ,polyL1 = NULL , minRepCov = NULL, maxRepCov = NULL, 
+                     minRepSize = NULL, maxRepSize = NULL, minBinSize = NULL, 
+                     maxBinSize = NULL){
+  
+  chromR <- chromList$R
+  colnames(chromR)[2:4] <- c("genoName", "genoStart", "genoEnd")
+  repList = c(repList, list(represedChromatin = chromR))
+  if(length(polyL1) != 0){
+    repList = c(repList, list(polyL1 = polyL1))
+  }
+  
+  refgene.gr <- GRanges(seqnames=Rle(refgene[,3]), ranges = IRanges(start = refgene[,5], end = refgene[,6]))
+  
+  
+  repBins <- repBins[, c("chr", "start", "end", "Known", repChoice)]
+  
+  if(!is.null(maxBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 < maxBinSize,]
+  }
+  if(!is.null(minBinSize)){
+    repBins <- repBins[repBins$end - repBins$start + 1 > minBinSize,]
+  }
+  colnames(repBins)[5] = "repCov"
+  if(!is.null(maxRepCov)){
+    repBins <- repBins[repBins$repCov < maxRepCov,]
+  }
+  if(!is.null(minRepCov)){
+    repBins <- repBins[repBins$repCov > minRepCov,]
+  }
+  
+  if(!is.null(maxRepSize)){
+    repGR <- repGR[width(repGR) < maxRepSize,]
+  }
+  if(!is.null(minRepSize)){
+    repGR <- repGR[width(repGR) > minRepSize,]
+  }
+  seqLen <- lenChoice + 1
+  names(seqLen) <- "seq"
+  
+  # it might be easier if we break down the four groups at the start
+  
+  us.ends <- repBins$start + ((repBins$end - repBins$start)/2)
+  us.ends[us.ends - repBins$start+1 > lenChoice] <- repBins$start[us.ends - repBins$start+1 > lenChoice] + lenChoice
+  us.bins <- data.frame(chr = repBins$chr, start = repBins$start, end = us.ends)
+  us.bins.gr <- GRanges(seqnames=Rle(us.bins$chr), 
+                        ranges = IRanges(start=us.bins$start, end = us.bins$end))
+  
+  ds.starts <- as.integer(repBins$end - ((repBins$end - repBins$start)/2))
+  ds.starts[repBins$end - ds.starts + 1> lenChoice] <- repBins$end[repBins$end - ds.starts + 1> lenChoice] - lenChoice
+  ds.bins <- data.frame(chr = repBins$chr, start = ds.starts, end = repBins$end)
+  ds.bins.gr <- GRanges(seqnames=Rle(ds.bins$chr), 
+                        ranges = IRanges(start=ds.bins$start, end = ds.bins$end))
+  
+  if(type == "intergenic"){
+    us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, maxgap=1))
+    if(!(length(unique(us.s.ol[,1])) == length(us.bins.gr))){
+      stop("some intergenic regions have no upstream gene")
+    }
+    us.strand <- data.frame(intergenicID = us.s.ol[,1],strand = refgene[us.s.ol[,2], 4])
+    us.plus <- unique(us.strand$intergenicID[us.strand$strand == "+"])
+    us.minus <- unique(us.strand$intergenicID[us.strand$strand == "-"])
+    
+    if(length(c(us.plus[us.plus %in% us.minus],us.minus[us.minus %in% us.plus])) != 0){
+      stop("strand confusion in upstream intergenic regions")
+    }
+    
+    ds.s.ol <- as.matrix(findOverlaps(ds.bins.gr, refgene.gr, maxgap=1))
+    if(!(length(unique(ds.s.ol[,1])) == length(ds.bins.gr))){
+      stop("some intergenic regions have no downstream gene")
+    }
+    ds.strand <- data.frame(intergenicID = ds.s.ol[,1],strand = refgene[ds.s.ol[,2], 4])
+    ds.plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+    ds.minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+    
+    if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
+      stop("strand confusion in downstream intergenic regions")
+    }
+    
+  }else if(type == "intron"){
+    
+    us.s.ol <- as.matrix(findOverlaps(us.bins.gr, refgene.gr, minoverlap=2))
+    if(!(length(unique(us.s.ol[,1])) == length(us.bins.gr))){
+      stop("some upstream intron regions don't belong to a gene")
+    }
+    us.strand <- data.frame(intronID = us.s.ol[,1],strand = refgene[us.s.ol[,2], 4])
+    us.plus <- unique(us.strand$intronID[us.strand$strand == "+"])
+    us.minus <- unique(us.strand$intronID[us.strand$strand == "-"])
+    
+    if(length(c(us.plus[us.plus %in% us.minus],us.minus[us.minus %in% us.plus])) != 0){
+      stop("strand confusion in upstream intron region")
+    }
+    
+    ds.s.ol <- as.matrix(findOverlaps(ds.bins.gr, refgene.gr, minoverlap=2))
+    if(!(length(unique(ds.s.ol[,1])) == length(ds.bins.gr))){
+      stop("some downstream intron regions don't belong to a gene")
+    }
+    ds.strand <- data.frame(intergenicID = ds.s.ol[,1],strand = refgene[ds.s.ol[,2], 4])
+    ds.plus <- unique(ds.strand$intergenicID[ds.strand$strand == "+"])
+    ds.minus <- unique(ds.strand$intergenicID[ds.strand$strand == "-"])
+    
+    if(length(c(ds.plus[ds.plus %in% ds.minus],ds.minus[ds.minus %in% ds.plus])) != 0){
+      stop("strand confusion in downstream intron region")
+    }
+  }else{
+    stop("type needs to be intron or intergenic")
+  }
+  
+  
+  us.bins.gr_5 <- us.bins.gr[us.minus]
+  binStartsUs5 <- as.data.frame(us.bins.gr_5)
+  binStartsUs5 <- data.frame( binStartsUs5, matrix(NA, nrow = length(us.bins.gr_5), ncol = length(repList),dimnames = list(1:length(us.bins.gr_5), names(repList))))
+  covListUs5 <- NULL
+  
+  
+  us.bins.gr_3 <- us.bins.gr[us.plus]
+  binStartsUs3 <- as.data.frame(us.bins.gr_3)
+  binStartsUs3 <- data.frame( binStartsUs3, matrix(NA, nrow = length(us.bins.gr_3), ncol = length(repList),dimnames = list(1:length(us.bins.gr_3), names(repList))))
+  covListUs3 <- NULL
+  
+  
+  ds.bins.gr_5 <- ds.bins.gr[ds.plus]
+  binStartsDs5 <- as.data.frame(ds.bins.gr_5)
+  binStartsDs5 <- data.frame( binStartsDs5, matrix(NA, nrow = length(ds.bins.gr_5), ncol = length(repList),dimnames = list(1:length( ds.bins.gr_5), names(repList))))
+  covListDs5 <- NULL
+  
+  ds.bins.gr_3 <- ds.bins.gr[ds.minus]
+  binStartsDs3 <- as.data.frame(ds.bins.gr_3)
+  binStartsDs3 <- data.frame( binStartsDs3, matrix(NA, nrow = length(ds.bins.gr_3), ncol = length(repList),dimnames = list(1:length( ds.bins.gr_3), names(repList))))
+  covListDs3 <- NULL
+  
+  
+  # set the loop up here
+  for(r in 1:length(repList)){
+    repGR <- GRanges(seqnames=Rle(repList[[r]]$genoName),
+                     ranges = IRanges(start = repList[[r]]$genoStart, end = repList[[r]]$genoEnd -1))
+    us.rep.int_5 <- intersect(repGR, us.bins.gr_5)
+    us.Ol_5 <- as.matrix(GenomicRanges::findOverlaps(us.bins.gr_5, us.rep.int_5, select = "first"))
+    us.Ol_5 <- data.frame(1:nrow(us.Ol_5), us.Ol_5)
+    us.Ol_5 <- us.Ol_5[complete.cases(us.Ol_5),]
+    binStartsUs5[us.Ol_5[,1],names(repList)[r]] <- start(us.rep.int_5[us.Ol_5[,2]]) - start(us.bins.gr_5[us.Ol_5[,1]]) + 1
+    
+    us.Ol_5 <- as.matrix(GenomicRanges::findOverlaps(us.bins.gr_5, us.rep.int_5, select = "all"))
+    us.cov_5 <- data.frame(start = start(us.rep.int_5[us.Ol_5[,2]]) - start(us.bins.gr_5[us.Ol_5[,1]]) + 1, 
+                           end =end(us.rep.int_5[us.Ol_5[,2]]) - start(us.bins.gr_5[us.Ol_5[,1]]) + 1,
+                           binID = us.Ol_5[,1], width.rank = (rank(width(us.bins.gr_5),ties.method = "random"))[us.Ol_5[,1]], width= width(us.bins.gr_5)[us.Ol_5[,1]])
+    
+    covListUs5 <- c(covListUs5, list(us.cov_5))
+    
+    
+    us.rep.int_3 <- intersect(repGR, us.bins.gr_3)
+    us.Ol_3 <- as.matrix(findOverlaps(us.bins.gr_3, us.rep.int_3, select = "first"))
+    us.Ol_3 <- data.frame(1:nrow(us.Ol_3), us.Ol_3)
+    us.Ol_3 <- us.Ol_3[complete.cases(us.Ol_3),]
+    binStartsUs3[us.Ol_3[,1],names(repList)[r]] <- start(us.rep.int_3[us.Ol_3[,2]]) - start(us.bins.gr_3[us.Ol_3[,1]]) + 1
+    
+    
+    us.Ol_3 <- as.matrix(findOverlaps(us.bins.gr_3, us.rep.int_3))
+    us.cov_3 <- data.frame(start = start(us.rep.int_3[us.Ol_3[,2]]) - start(us.bins.gr_3[us.Ol_3[,1]]) + 1, 
+                           end =end(us.rep.int_3[us.Ol_3[,2]]) - start(us.bins.gr_3[us.Ol_3[,1]]) + 1,
+                           binID = us.Ol_3[,1], width.rank = (rank(width(us.bins.gr_3),ties.method = "random"))[us.Ol_3[,1]], width= width(us.bins.gr_3)[us.Ol_3[,1]])
+    
+    covListUs3 <- c(covListUs3, list(us.cov_3))
+    
+    
+    
+    ds.rep.int_5 <- intersect(repGR, ds.bins.gr_5)
+    ds.Ol_5 <- as.matrix(findOverlaps(ds.bins.gr_5, ds.rep.int_5, select = "first"))
+    ds.Ol_5 <- data.frame(1:nrow(ds.Ol_5), ds.Ol_5)
+    ds.Ol_5 <- ds.Ol_5[complete.cases(ds.Ol_5),]
+    binStartsUs3[ds.Ol_5[,1],names(repList)[r]] <- (lenChoice - (end(ds.bins.gr_5[ds.Ol_5[,1]]) - start(ds.bins.gr_5[ds.Ol_5[,1]]))) + (start(ds.rep.int_5[ds.Ol_5[,2]]) - start(ds.bins.gr_5[ds.Ol_5[,1]])) + 1
+    
+    ds.Ol_5 <- as.matrix(findOverlaps(ds.bins.gr_5, ds.rep.int_5))
+    ds.cov_5 <- data.frame(start =   (lenChoice - (end(ds.bins.gr_5[ds.Ol_5[,1]]) - start(ds.bins.gr_5[ds.Ol_5[,1]]))) + (start(ds.rep.int_5[ds.Ol_5[,2]]) - start(ds.bins.gr_5[ds.Ol_5[,1]])) + 1 ,
+                           end =  (lenChoice - (end(ds.bins.gr_5[ds.Ol_5[,1]]) - start(ds.bins.gr_5[ds.Ol_5[,1]]))) + (end(ds.rep.int_5[ds.Ol_5[,2]]) - start(ds.bins.gr_5[ds.Ol_5[,1]])) + 1,
+                           binID = ds.Ol_5[,1], width.rank = (rank(width(ds.bins.gr_5),ties.method = "random"))[ds.Ol_5[,1]], width= width(ds.bins.gr_5)[ds.Ol_5[,1]])
+    
+    covListDs5 <- c(covListDs5, list(ds.cov_5))
+    
+    ds.rep.int_3 <- intersect(repGR, ds.bins.gr_3)
+    ds.Ol_3 <- as.matrix(findOverlaps(ds.bins.gr_3, ds.rep.int_3, select = "first"))
+    ds.Ol_3 <- data.frame(1:nrow(ds.Ol_3), ds.Ol_3)
+    ds.Ol_3 <- ds.Ol_3[complete.cases(ds.Ol_3),]
+    binStartsUs3[ds.Ol_3[,1],names(repList)[r]] <- (lenChoice - (end(ds.bins.gr_3[ds.Ol_3[,1]]) - start(ds.bins.gr_3[ds.Ol_3[,1]]))) + (start(ds.rep.int_3[ds.Ol_3[,2]]) - start(ds.bins.gr_3[ds.Ol_3[,1]])) + 1
+    
+    ds.Ol_3 <- as.matrix(findOverlaps(ds.bins.gr_3, ds.rep.int_3))
+    ds.cov_3 <- data.frame(start =   (lenChoice - (end(ds.bins.gr_3[ds.Ol_3[,1]]) - start(ds.bins.gr_3[ds.Ol_3[,1]]))) + (start(ds.rep.int_3[ds.Ol_3[,2]]) - start(ds.bins.gr_3[ds.Ol_3[,1]])) + 1 ,
+                           end =  (lenChoice - (end(ds.bins.gr_3[ds.Ol_3[,1]]) - start(ds.bins.gr_3[ds.Ol_3[,1]]))) + (end(ds.rep.int_3[ds.Ol_3[,2]]) - start(ds.bins.gr_3[ds.Ol_3[,1]])) + 1,
+                           binID = ds.Ol_3[,1], width.rank = (rank(width(ds.bins.gr_3),ties.method = "random"))[ds.Ol_3[,1]], width= width(ds.bins.gr_3)[ds.Ol_3[,1]])
+    
+    covListDs3 <- c(covListDs3, list(ds.cov_3))
+    
+    
+  }
+  names(covListUs5) <- names(repList)
+  names(covListUs3) <- names(repList)
+  names(covListDs5) <- names(repList)
+  names(covListDs3) <- names(repList)
+  
+  
+  # we need to trun some of these around to match their relative gene position
+  
+  
+  output = list(covListUs5 = covListUs5, 
+                covListDs5 = covListDs5,
+                covListUs3 = covListUs3,
+                covListDs3 = covListDs3,
+                startsUs5 = binStartsUs5,
+                startsDs5 = binStartsDs5,
+                startsUs3 = binStartsUs3,
+                startsDs3 = binStartsDs3
+  )
+  return(output)
+  
+}  
+
+
+### this will get us a matrix with repeat info for equally sized regions around a boundry
+### there will be a matrix for each repeat type looked at, and all matricies will be stored in a list
+
+
+boundryAnotation <- function(repList, binSize, regionSize, repTypes, boundryLine, boundryChr){
+  TErateMatrixList <- NULL
+  for(i in 1:length(repList)){
+    TErateMatrixList <- c(TErateMatrixList, list(matrix(nrow = length(boundryLine), ncol = regionSize/binSize)))
+  }
+  names(TErateMatrixList) <- names(repList)
+  
+  for(i in 1:(regionSize/binSize)){
+    print(i)
+    bin <- data.frame(chr = boundryChr, 
+                      start = (boundryLine - (regionSize/2)) + ((i - 1) * binSize), 
+                      end = (boundryLine - (regionSize/2)) + ((i) * binSize))
+    bin$Known <- binSize
+    sorted <- binSort(rep = repList, bins = bin,TE.names = names(repList), repType = repTypes )
+    for(te in 1:length(repList)){
+      TErateMatrixList[[(names(repList)[te])]][,i] <- sorted$rates[,names(repList)[te]]
+    }
+    
+  }
+  return(TErateMatrixList)
+}
+
+
+binScoreSort <- function(repList, bins, TE.names, repType, metadata){
+  bin.gr <- GRanges(seqnames=Rle(bins$chr),
+                    ranges = IRanges(start=bins$start, end = bins$end - 1))
+  
+  for(te in 1:length(TE.names)){
+    print(TE.names[te])
+    if(repType[te] == "repeats"){
+      te.gr <- repList[[TE.names[te]]]
+      GR <- GRanges(seqnames = Rle(te.gr$genoName),
+                    ranges = IRanges(start = te.gr$genoStart, end = te.gr$genoEnd))
+    }else if(repType[te] == "chromatin"){
+      te.gr <- repList[[TE.names[te]]]
+      GR <- GRanges(seqnames = Rle(te.gr$chrom),
+                    ranges = IRanges(start = te.gr$chromStart, end = te.gr$chromEnd))
+    }else if(repType[te] == "GRange"){
+      GR <- repList[[te]]
+    }else{
+      stop("no repType")
+    }
+    
+    # here we can do repeat coverage 
+    
+    OL.f <- as.matrix(findOverlaps(bin.gr,GR))
+    if(length(OL.f) > 0){
+      OL.agg <- aggregate( x= elementMetadata(GR[OL.f[,2]])[[metadata]] , by= list(OL.f[,1]), FUN=mean)
+      bins[OL.agg[,1],TE.names[te]] <- OL.agg[,2]
+      bins[is.na(bins[,TE.names[te]]),TE.names[te]] <- 0
+    }else{
+      bins[,TE.names[te]] <- 0
+    }
+    
+  }
+  return(bins)
+}
+
+
+
+
+boundryScoreAnotation <- function(repList, binSize, regionSize, repTypes, boundryLine, boundryChr, metadata, TE.names){
+  TErateMatrixList <- NULL
+  for(i in 1:length(repList)){
+    TErateMatrixList <- c(TErateMatrixList, list(matrix(nrow = length(boundryLine), ncol = regionSize/binSize)))
+  }
+  names(TErateMatrixList) <- TE.names
+  
+  for(i in 1:(regionSize/binSize)){
+    print(i)
+    bin <- data.frame(chr = boundryChr, 
+                      start = (boundryLine - (regionSize/2)) + ((i - 1) * binSize), 
+                      end = (boundryLine - (regionSize/2)) + ((i) * binSize))
+    bin$Known <- binSize
+    sorted <- binScoreSort(rep = repList, bins = bin,TE.names = TE.names, repType = repTypes , metadata = metadata)
+    for(te in 1:length(repList)){
+      TErateMatrixList[[(TE.names)[te]]][,i] <- sorted[,TE.names[te]]
+    }
+    
+  }
+  return(TErateMatrixList)
+}
+
 
 
 #######

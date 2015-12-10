@@ -166,7 +166,7 @@ joinSampGenomeMed <- localGCgenome(repList = joinRepChromatin,binSize = 10000,sa
 # we can put the heterochromatin in here 
 
 ### adjust GC contnent 
-layout(matrix(c(1,2)))
+layout(matrix(c(1)))
 par(mar=c(5,5,5,5))
 
 plot(joinSampGenomeMed$R, joinSampGenomeMed$GC, pch = 16, cex = .2)
@@ -228,7 +228,7 @@ legend("topright", legend = c("Adjusted", "Raw"), fill = c(2,4), title = "GC dat
 
 
 
-genome_type <- "intergenic"
+genome_type <- "intron"
 if(genome_type == "intergenic"){
   lenChoice = 100000
 }else if (genome_type == "intron"){
@@ -271,21 +271,26 @@ meanRes.pre_5 <- predict(RgcLoMed,rChromatin$rawRepCov5/rChromatin$baseFreq5prim
 meanRes.adj_5 <- (meanRes$prime5gc - meanRes.pre_5) + mean(joinSampGenomeMed$GC)
 
 layout(matrix(c(1,2), nrow = 1))
-par(mar=c(5,5,5,5))
-plot(sqrtCoordinates,meanRes$prime5gc, type = "l", ylab = "GC fraction", ylim = c(.3,.6), main = "5 prime")
+par(mar=c(5,5,5,0))
+plot(sqrtCoordinates,meanRes$prime5gc, type = "l", ylab = "GC fraction", ylim = c(.3,.6), main = "upstream", xaxt = "n", xlab = "")
 lines(sqrtCoordinates,meanRes.pre_5, col = 2)
 lines(sqrtCoordinates,meanRes.adj_5, col = 4)
 par(new=TRUE)
-plot(sqrtCoordinates,rChromatin$rawRepCov5/TEset$baseFreq5prime, type = "l", ylab = "", xlab = "", yaxt = "n", col= 3, ylim = c(.3,1))
-axis(4,at = seq(0,1,.1), labels = seq(0,1,.1))
+plot(sqrtCoordinates,rChromatin$rawRepCov5/TEset$baseFreq5prime, type = "l", ylab = "", xlab = "", yaxt = "n",xaxt ="n" ,col= 3, ylim = c(.3,1))
+axis(1,at = seq(0,-sqrt(lenChoice), by = -40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
 legend("bottomleft", legend = c("raw GC","predicted GC" ,"adjusted GC", "heterochromatin"), fill = c(1,2,4,3), title = "GC data")
 
-plot(sqrt(1:(lenChoice+1)),meanRes$prime3gc, type = "l", ylab = "GC fraction",ylim = c(.3,.6) , main = "3 prime")
+par(mar=c(5,0,5,5))
+plot(sqrt(1:(lenChoice+1)),meanRes$prime3gc, type = "l",ylim = c(.3,.6) , main = "3 prime", xaxt = "n", xlab = "", yaxt = "n")
 lines(sqrt(1:(lenChoice+1)),meanRes.pre_3, col = 2)
 lines(sqrt(1:(lenChoice+1)),meanRes.adj_3, col = 4)
 par(new=TRUE)
-plot(sqrt(1:(lenChoice+1)),rChromatin$rawRepCov3/TEset$baseFreq3prime, type = "l", ylab = "", xlab = "", yaxt = "n", col= 3, ylim = c(.3,1))
+plot(sqrt(1:(lenChoice+1)),rChromatin$rawRepCov3/TEset$baseFreq3prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= 3, ylim = c(.3,1))
 axis(4,at = seq(0,1,.1), labels = seq(0,1,.1))
+mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
+
+axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
+
 layout(1)
 
 #### lets start plotting and adjusting
@@ -304,55 +309,56 @@ ylims <- c(0,.2)
 #### the loop will start around here
 repChoice <- names(joinRep)
 
-te =2
-
-# i can probably change the MOD and gc rate depending on wheather i want to adjust chromatin a certain way
-element <- get(repChoice[te])
-Mod <- get(paste(repChoice[te],"ModAdj", sep =""))
-gcRate5 <- meanRes.adj_5
-gcRate3 <- meanRes.adj_3
-
-
-layout(matrix(nrow = 1, c(1,2)))
-par(mar=c(5,5,5,0))
-plot(sqrtCoordinates,(element$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = paste(repChoice[te], "fraction"), xlab = "", ylim = ylims, xaxt = "n" , main = "upsteam")
-grid()
-for(c in 1:length(greys)){
-  lines(sqrtCoordinates[prime5BaseFreq$group == c], (element$rawRepCov5/TEset$baseFreq5prime)[prime5BaseFreq$group == c], col = greys[c])
+for(te in 1:length(repChoice)){
+  
+  
+  # i can probably change the MOD and gc rate depending on wheather i want to adjust chromatin a certain way
+  element <- get(repChoice[te])
+  Mod <- get(paste(repChoice[te],"ModAdj", sep =""))
+  gcRate5 <- meanRes.adj_5
+  gcRate3 <- meanRes.adj_3
+  
+  
+  layout(matrix(nrow = 1, c(1,2)))
+  par(mar=c(5,5,5,0))
+  plot(sqrtCoordinates,(element$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = paste(repChoice[te], "fraction"), xlab = "", ylim = ylims, xaxt = "n" , main = "upsteam")
+  grid()
+  for(c in 1:length(greys)){
+    lines(sqrtCoordinates[prime5BaseFreq$group == c], (element$rawRepCov5/TEset$baseFreq5prime)[prime5BaseFreq$group == c], col = greys[c])
+  }
+  lines(sqrtCoordinates,predict(Mod, gcRate5) + (2 * sqrt(TEset$baseFreq5prime * predict(Mod, gcRate5) *  (1 - predict(Mod, gcRate5))))/TEset$baseFreq5prime, col = 2)
+  lines(sqrtCoordinates,predict(Mod, gcRate5) - (2 * sqrt(TEset$baseFreq5prime * predict(Mod, gcRate5) *  (1 - predict(Mod, gcRate5))))/TEset$baseFreq5prime, col = 2)
+  par(new=TRUE)
+  plot(sqrtCoordinates,rChromatin$rawRepCov5/TEset$baseFreq5prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= "darkblue", ylim = c(.3,1))
+  
+  axis(1,at = seq(0,-sqrt(lenChoice), by = -40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
+  
+  
+  par(mar=c(5,0,5,5))
+  plot(sqrt(1:(lenChoice+1)),(element$rawRepCov3/TEset$baseFreq3prime), type = "n", ylab = "", xlab = "", ylim = ylims, xaxt = "n" , yaxt = "n", main = "downsteam")
+  grid()
+  for(c in 1:length(greys)){
+    lines(sqrt(1:(lenChoice+1))[prime3BaseFreq$group == c], (element$rawRepCov3/TEset$baseFreq3prime)[prime3BaseFreq$group == c], col = greys[c])
+  }
+  lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) + (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
+  lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) - (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
+  par(new=TRUE)
+  plot(sqrt(1:(lenChoice+1)),rChromatin$rawRepCov3/TEset$baseFreq3prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col=  "darkblue", ylim = c(.3,1))
+  axis(4,at = seq(.3,1,length.out = 5), labels = seq(.3,1,length.out = 5),col =  "darkblue")
+  mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
+  
+  axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
+  
+  #### two different effects
+  
+  
 }
-lines(sqrtCoordinates,predict(Mod, gcRate5) + (2 * sqrt(TEset$baseFreq5prime * predict(Mod, gcRate5) *  (1 - predict(Mod, gcRate5))))/TEset$baseFreq5prime, col = 2)
-lines(sqrtCoordinates,predict(Mod, gcRate5) - (2 * sqrt(TEset$baseFreq5prime * predict(Mod, gcRate5) *  (1 - predict(Mod, gcRate5))))/TEset$baseFreq5prime, col = 2)
-par(new=TRUE)
-plot(sqrtCoordinates,rChromatin$rawRepCov5/TEset$baseFreq5prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= "darkblue", ylim = c(.3,1))
-
-axis(1,at = seq(0,-sqrt(lenChoice), by = -40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
-
-
-par(mar=c(5,0,5,5))
-plot(sqrt(1:(lenChoice+1)),(element$rawRepCov3/TEset$baseFreq3prime), type = "n", ylab = "", xlab = "", ylim = ylims, xaxt = "n" , yaxt = "n", main = "downsteam")
-grid()
-for(c in 1:length(greys)){
-  lines(sqrt(1:(lenChoice+1))[prime3BaseFreq$group == c], (element$rawRepCov3/TEset$baseFreq3prime)[prime3BaseFreq$group == c], col = greys[c])
-}
-lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) + (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
-lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) - (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
-par(new=TRUE)
-plot(sqrt(1:(lenChoice+1)),rChromatin$rawRepCov3/TEset$baseFreq3prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col=  "darkblue", ylim = c(.3,1))
-axis(4,at = seq(.3,1,length.out = 5), labels = seq(.3,1,length.out = 5),col =  "darkblue")
-mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
-
-axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
-
-#### two different effects
-
-
-
 
 
 ### this is with adjusted heterochromatin
 
 
-te = 2
+for(te in 1:length(repChoice)){
 
 element <- get(repChoice[te])
 Mod <- get(paste(repChoice[te],"Mod", sep =""))
@@ -360,8 +366,6 @@ gcRate5 <- meanRes$prime5gc
 gcRate3 <- meanRes$prime3gc
 
 
-
-
 layout(matrix(nrow = 1, c(1,2)))
 par(mar=c(5,5,5,0))
 plot(sqrtCoordinates,(element$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = paste(repChoice[te], "fraction"), xlab = "", ylim = ylims, xaxt = "n" , main = "upsteam")
@@ -372,7 +376,8 @@ for(c in 1:length(greys)){
 lines(sqrtCoordinates,predict(Mod, gcRate5) + (2 * sqrt(TEset$baseFreq5prime * predict(Mod, gcRate5) *  (1 - predict(Mod, gcRate5))))/TEset$baseFreq5prime, col = 2)
 lines(sqrtCoordinates,predict(Mod, gcRate5) - (2 * sqrt(TEset$baseFreq5prime * predict(Mod, gcRate5) *  (1 - predict(Mod, gcRate5))))/TEset$baseFreq5prime, col = 2)
 par(new=TRUE)
-plot(sqrtCoordinates,((rChromatin$rawRepCov5/TEset$baseFreq5prime) - predict(rMod, gcRate5)) + mean(joinSampGenomeMed$R), type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= "darkblue", ylim = c(.3,1))
+#plot(sqrtCoordinates,((rChromatin$rawRepCov5/TEset$baseFreq5prime) - predict(rMod, gcRate5)) + mean(joinSampGenomeMed$R), type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= "darkblue", ylim = c(.3,1))
+plot(sqrtCoordinates,(rChromatin$rawRepCov5/TEset$baseFreq5prime), type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= "darkblue", ylim = c(.3,1))
 
 axis(1,at = seq(0,-350, by = -50), labels = seq(0,350, by = 50)^2)
 
@@ -386,13 +391,15 @@ for(c in 1:length(greys)){
 lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) + (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
 lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) - (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
 par(new=TRUE)
-plot(sqrt(1:(lenChoice+1)),((rChromatin$rawRepCov3/TEset$baseFreq3prime) - predict(rMod, gcRate3)) + mean(joinSampGenomeMed$R), type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col=  "darkblue", ylim = c(.3,1))
+#plot(sqrt(1:(lenChoice+1)),((rChromatin$rawRepCov3/TEset$baseFreq3prime) - predict(rMod, gcRate3)) + mean(joinSampGenomeMed$R), type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col=  "darkblue", ylim = c(.3,1))
+plot(sqrt(1:(lenChoice+1)),((rChromatin$rawRepCov3/TEset$baseFreq3prime)), type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col=  "darkblue", ylim = c(.3,1))
+
 axis(4,at = seq(.3,1,length.out = 5), labels = seq(.3,1,length.out = 5),col =  "darkblue")
 mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
 
 axis(1,at = seq(0,350, by = 50), labels = seq(0,350, by = 50)^2)
 
-
+}
 
 ### we use the GC rate to get the expected level of things 
 ### we redict the mean rate based on GC, 
