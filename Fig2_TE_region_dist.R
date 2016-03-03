@@ -111,6 +111,11 @@ intron_chromatinSamp <- intron_chromatin$counts[intronSample,]
 TEs_intergenic <- covCalcPlot5prime3primeGC(lenChoice=100000,repBins=intergenic_reps$counts[intergenicSample,],refgene=refgene,type="intergenic",genome=genome)
 TEs_intron <- covCalcPlot5prime3primeGC(lenChoice=40000,repBins=intron_reps$counts[intronSample,],refgene=refgene,type="intron",genome=genome)
 
+save(TEs_intergenic, file = "~/Desktop/Domain_manuscript/R_objects/TEs_intergenicGC")
+save(TEs_intron, file = "~/Desktop/Domain_manuscript/R_objects/TEs_intronGC")
+
+save(intergenicSample, file = "~/Desktop/Domain_manuscript/R_objects/intergenicSample")
+save(intronSample, file = "~/Desktop/Domain_manuscript/R_objects/intronSample")
 
 
 ###### 
@@ -162,7 +167,7 @@ joinSampGenomeMed <- localGCgenome(repList = joinRepChromatin,binSize = 10000,sa
 
 
 # maybe do it all at the 1000bp level. 
-
+ 
 # we can put the heterochromatin in here 
 
 ### adjust GC contnent 
@@ -225,6 +230,9 @@ legend("topright", legend = c("Adjusted", "Raw"), fill = c(2,4), title = "GC dat
 
 #### here we actually do our plotting 
 ### before I get onto this I need to correct 
+
+
+
 
 
 
@@ -309,6 +317,9 @@ ylims <- c(0,.2)
 #### the loop will start around here
 repChoice <- names(joinRep)
 
+  pdf(file = "~/Desktop/Domain_manuscript/plots/geneRep/intergenic.pdf",width = 9,height = 5,onefile = T)
+    layout(matrix(nrow = 4, c(1,3,5,7,2,4,6,8)))
+
 for(te in 1:length(repChoice)){
   
   
@@ -319,10 +330,11 @@ for(te in 1:length(repChoice)){
   gcRate3 <- meanRes.adj_3
   
   
-  layout(matrix(nrow = 1, c(1,2)))
-  par(mar=c(5,5,5,0))
-  plot(sqrtCoordinates,(element$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = paste(repChoice[te], "fraction"), xlab = "", ylim = ylims, xaxt = "n" , main = "upsteam")
+  par(mar=c(0,5,0,1))
+  plot(sqrtCoordinates,(element$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = paste(repChoice[te], "fraction"), xlab = "", ylim = ylims, xaxt = "n" , main = "", yaxt = "n")
   grid()
+  axis(2,at = seq(.05,.15,by=.05), labels = seq(.05,.15,by=.05),col =  1, cex.axis = 1.5)
+
   for(c in 1:length(greys)){
     lines(sqrtCoordinates[prime5BaseFreq$group == c], (element$rawRepCov5/TEset$baseFreq5prime)[prime5BaseFreq$group == c], col = greys[c])
   }
@@ -331,11 +343,11 @@ for(te in 1:length(repChoice)){
   par(new=TRUE)
   plot(sqrtCoordinates,rChromatin$rawRepCov5/TEset$baseFreq5prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col= "darkblue", ylim = c(.3,1))
   
-  axis(1,at = seq(0,-sqrt(lenChoice), by = -40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
+#  axis(1,at = seq(0,-sqrt(lenChoice), by = -40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
   
   
-  par(mar=c(5,0,5,5))
-  plot(sqrt(1:(lenChoice+1)),(element$rawRepCov3/TEset$baseFreq3prime), type = "n", ylab = "", xlab = "", ylim = ylims, xaxt = "n" , yaxt = "n", main = "downsteam")
+  par(mar=c(0,1,0,5))
+  plot(sqrt(1:(lenChoice+1)),(element$rawRepCov3/TEset$baseFreq3prime), type = "n", ylab = "", xlab = "", ylim = ylims, xaxt = "n" , yaxt = "n", main = "")
   grid()
   for(c in 1:length(greys)){
     lines(sqrt(1:(lenChoice+1))[prime3BaseFreq$group == c], (element$rawRepCov3/TEset$baseFreq3prime)[prime3BaseFreq$group == c], col = greys[c])
@@ -344,19 +356,47 @@ for(te in 1:length(repChoice)){
   lines(sqrt(1:(lenChoice+1)),predict(Mod, gcRate3) - (2 * sqrt(TEset$baseFreq3prime * predict(Mod, gcRate3) *  (1 - predict(Mod, gcRate3))))/TEset$baseFreq3prime, col = 2)
   par(new=TRUE)
   plot(sqrt(1:(lenChoice+1)),rChromatin$rawRepCov3/TEset$baseFreq3prime, type = "l", ylab = "", xlab = "", yaxt = "n", xaxt = "n", col=  "darkblue", ylim = c(.3,1))
-  axis(4,at = seq(.3,1,length.out = 5), labels = seq(.3,1,length.out = 5),col =  "darkblue")
-  mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
+  axis(4,at = seq(.475,1,by=.35), labels = seq(.475,1,by=.35),col =  "darkblue", cex.axis = 1.5, col.axis="darkblue")
+ # mtext(text = "repressive chromatin fraction",side = 4, outer = F,line = 3)
   
-  axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
+#  axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2)
   
   #### two different effects
-  
-  
+
 }
+    par(mar=c(5,5,0,1))
+    plot(sqrtCoordinates,(element$rawRepCov5/TEset$baseFreq5prime), type = "n", ylab = paste(repChoice[te], "fraction"), xlab = "", ylim = ylims, xaxt = "n" , main = "", yaxt = "n")
+    axis(1,at = seq(0,-sqrt(lenChoice), by = -40), labels = seq(0,sqrt(lenChoice), by = 40)^2, cex.axis=1.5)
+  par(mar=c(5,1,0,5))
+  plot(sqrt(1:(lenChoice+1)),(element$rawRepCov3/TEset$baseFreq3prime), type = "n", ylab = "", xlab = "", ylim = ylims, xaxt = "n" , yaxt = "n", main = "")
+  axis(1,at = seq(0,sqrt(lenChoice), by = 40), labels = seq(0,sqrt(lenChoice), by = 40)^2, cex.axis=1.5)
+  dev.off()
 
+## Trying to get the range thing to work
+  
+  greys
+  max(c(max(TEset$baseFreq5prime),max(TEset$baseFreq3prime)))
+  min(c(min(TEset$baseFreq5prime),min(TEset$baseFreq3prime)))
+  mean(c(TEset$baseFreq5prime, TEset$baseFreq3prime))
+  pdf("~/Desktop/Domain_manuscript/plots/geneRep/intergenic_legend.pdf")
+  layout(1)
+  par(mar=c(5,5,5,27))
+  image(x = t(matrix(1:10)),col = greys, xaxt = "n", yaxt = "n")
+  axis(side = 4, at = seq(from = 0, to = 1,length.out = 10), seq(1000, 10000, 1000))
+  dev.off()
+  # this is with adjusted heterochromatin
 
-### this is with adjusted heterochromatin
-
+  
+  
+  #### lets work out which thinks we should save
+  
+  
+  
+  
+  
+  
+  
+  
 
 for(te in 1:length(repChoice)){
 

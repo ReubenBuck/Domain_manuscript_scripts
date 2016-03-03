@@ -23,7 +23,7 @@ rm(list = ls())
 
 
 source("~/Desktop/Domain_manuscript/Domain_manuscript_scripts/rep_db.R")
-source(file="~/Desktop/element_curves/element_curves_scripts/functions.R")
+source(file="~/Desktop/Domain_manuscript/Domain_manuscript_scripts/functions.R")
 options(stringsAsFactors=FALSE)
 
 
@@ -32,9 +32,8 @@ bin.size = 1000000
 speciesDF <- data.frame(spec = c("Human", "Dog", "Chimp", "Mouse", "Rhesus"), genome = c("hg19", "canFam3","panTro4", "mm9", "rheMac3"))
 
 
-for(s in nrow(speciesDF)){
+for(s in 2:(nrow(speciesDF)-1)){
   rep <- rep_info(spec1=speciesDF$spec[s], genome=speciesDF$genome[s])
-  
   # remove unplaced chromosomes from repeats
   TE.names <- names(rep)
   for(i in TE.names){
@@ -42,21 +41,16 @@ for(s in nrow(speciesDF)){
       rep[[i]] <- rep[[i]][-(grep("_", rep[[i]]$genoName)),]
     }
   }
-  
   bins <- binned.genome.reader(genome=speciesDF$genome[s], bin.size=bin.size, keep.rate=.9)
   bins <- bins[[1]]
   # remove unplaced chromosomes from bins
   if(length(grep("_", bins$chr)) > 0){
     bins <- bins[-(grep("_", bins$chr)),]
   }
-  
-  
-  
-  bin.sort = binSort(rep=rep, bins=bins)
+  bin.sort = binSort(repList = rep, bins=bins,TE.names = names(rep), repType = rep("repeats", length(rep)))
   assign(paste(speciesDF$spec[s], "covCount", sep = "_"), bin.sort$counts)
   assign(paste(speciesDF$spec[s], "covRate", sep = "_"), bin.sort$rates)
   assign(paste(speciesDF$spec[s], "repInfo", sep = "_"), rep)
-  
 }
 
 
@@ -75,13 +69,15 @@ for(s in 1:nrow(speciesDF)){
   agg <- aggregate(pca$rotation[repStruct$TEname,1:2], by=list(repStruct$repType), FUN = mean)
   rownames(agg) <- agg[,1]
   agg <- agg[,c("PC1", "PC2")]
+  sinePC <- colnames(agg)[max(abs(agg["new_SINE",])) == abs(agg["new_SINE",])]
+  ancPC <- colnames(agg)[colnames(agg)!=sinePC]
 #  ancPC <- colnames(agg)[max(abs(agg["ancient",])) == abs(agg["ancient",])]
-#  sinePC <- colnames(agg)[max(abs(agg["new_SINE",])) == abs(agg["new_SINE",])]
+ 
 #  if(ancPC == sinePC){
     # if they are poth the same we pick the anc PC that shows the biggest difference between ancestra elments
     # and new lines
-    ancPC <- colnames(agg)[max(abs(agg["new_LINE",] - agg["ancient",])) == abs(agg["new_LINE",] - agg["ancient",])]
-    sinePC <- colnames(agg)[colnames(agg)!=ancPC]
+#     ancPC <- colnames(agg)[max(abs(agg["new_LINE",] - agg["ancient",])) == abs(agg["new_LINE",] - agg["ancient",])]
+#     sinePC <- colnames(agg)[colnames(agg)!=ancPC]
 #  }
   sumPCA <- summary(pca)
   bin.ratePCA <- list(binInfo = data.frame(bin.rate[,1:4]),
@@ -100,11 +96,11 @@ for(s in 1:nrow(speciesDF)){
 
 
 
-reuben.biplot(x=HumanPCA$x, y = HumanPCA$rotation)
-reuben.biplot(x=DogPCA$x, y = DogPCA$rotation)
-reuben.biplot(x=ChimpPCA$x, y = ChimpPCA$rotation)
-reuben.biplot(x=MousePCA$x, y = MousePCA$rotation)
-reuben.biplot(x=RhesusPCA$x, y = RhesusPCA$rotation)
+reuben.biplot(x=HumanPCA$x, y = HumanPCA$rotation, x.col = 8)
+reuben.biplot(x=DogPCA$x, y = DogPCA$rotation, x.col = 8)
+reuben.biplot(x=ChimpPCA$x, y = ChimpPCA$rotation, x.col = 8)
+reuben.biplot(x=MousePCA$x, y = MousePCA$rotation, x.col = 8)
+reuben.biplot(x=RhesusPCA$x, y = RhesusPCA$rotation, x.col = 8)
 
 
 objectsPCA <- paste(speciesDF$spec, "PCA", sep = "")

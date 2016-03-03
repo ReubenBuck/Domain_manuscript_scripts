@@ -1163,10 +1163,27 @@ buildBinMap <- function(align, refSpec, queSpec){
 }
 
 
+### Takes a bin mapping of two species genome and remodels the query species according to the reference 
+### plot also takes a cutoff value that decided the minnimum representation of a bin 
+
+
 mapRemodeler <- function(refSpec, queSpec, cutoff, PCs = c("ancient_PC", "new_SINE_PC")){
   
   analysis <- get(paste(refSpec, "Ref_", queSpec,"Que", sep = ""))
-  BinMap <- analysis$binMap[analysis$binMap$queWidth > cutoff,]
+  BinMap <- analysis$binMap
+  
+  aggRefFrac <- aggregate(x = BinMap$refFrac, by = list(BinMap$refNo), FUN = sum)
+  aggQueFrac <- aggregate(x = BinMap$queFrac, by = list(BinMap$queNo), FUN = sum)
+  rmRbins <- aggRefFrac$Group.1[aggRefFrac$x < cutoff]
+  rmQbins <- aggQueFrac$Group.1[aggQueFrac$x < cutoff]
+  
+  BinMap <- BinMap[!(BinMap$refNo %in% rmRbins),]
+  BinMap <- BinMap[!(BinMap$queNo %in% rmQbins),]
+  
+  
+  # so we need to look at the binMap differntly 
+  # remove bins form the analysis in which only a small fraction of them map, instead of removing small fractions of bins
+  
   metaList = NULL
   
   for(pc in PCs){
@@ -1216,13 +1233,17 @@ mapRemodeler <- function(refSpec, queSpec, cutoff, PCs = c("ancient_PC", "new_SI
   return(metaList)
   
   
- 
+  
 }
+
 
 covCalcPlot <- function(lenChoice, repChoice, repBins , repList ,minRepCov = NULL, maxRepCov = NULL, minRepSize = NULL, maxRepSize = NULL, minBinSize = NULL, maxBinSize = NULL){
   
   
   repBins <- repBins[repBins[,repChoice] > 0, c("chr", "start", "end", "Known", repChoice)]
+  
+  repBins.gr <- GRanges(seqnames = Rle(repBins$chr), 
+                        ranges = IRanges(start = repBins$start, end = repBins$end))
   
   if(!is.null(maxBinSize)){
     repBins <- repBins[repBins$end - repBins$start + 1 < maxBinSize,]
@@ -1277,23 +1298,22 @@ covCalcPlot <- function(lenChoice, repChoice, repBins , repList ,minRepCov = NUL
                        end =  (lenChoice - (end(ds.bins.gr[ds.Ol[,1]]) - start(ds.bins.gr[ds.Ol[,1]]))) + (end(ds.rep.int[ds.Ol[,2]]) - start(ds.bins.gr[ds.Ol[,1]])) + 1)
   ds.cov.r <- GRanges(seqnames=Rle("seq"),ranges = IRanges(start=ds.cov$start, end=ds.cov$end),seqlengths = seqLen + 1)
   
-  totCov <- as.numeric(coverage(ds.cov.r)$seq[(lenChoice+1):1]) + as.numeric(coverage(us.cov.r)$seq)
   
-  len.s <- sort(as.integer((repBins$end - repBins$start+1) / 2))
-  lenSum <- summary(as.factor(len.s), maxsum=length(unique(len.s)))
-  CS <- cumsum(as.integer(lenSum)[length(lenSum):1])
-  CS <- CS[length(CS):1]
-  step <- stepfun(as.numeric(names(lenSum)), c(CS,0))
-  stepRes <- step(1:(lenChoice+1)) * 2
+  # we can get our base frequency another way
   
-  p = sum(repBins$repCov)/sum(repBins$end - repBins$start + 1)
-  n = stepRes
+  us.bins.bf <- as.integer(coverage(IRanges(start = 1, width = width(us.bins.gr))))
+  ds.bins.bf <- as.integer(coverage(IRanges(end = lenChoice +1, width = width(ds.bins.gr))))
   
-  output = list(rawRepCov = totCov, zRepCov = (totCov - n*p)/sqrt(n*p*(1-p)), mean = n*p, sd = sqrt(n*p*(1-p)), baseFreq = stepRes)
+  
+  
+  # totCov <- as.numeric(coverage(ds.cov.r)$seq[(lenChoice+1):1]) + as.numeric(coverage(us.cov.r)$seq)
+  int <- intersect(repBins.gr, repGR)
+  p = sum(width(int))/sum(width(repBins.gr))
+  
+  output = list(rawRepCov5 = as.integer(coverage(ds.cov.r)$seq), rawRepCov3 = as.integer(coverage(us.cov.r)$seq), p = p, baseFreq5 = ds.bins.bf, baseFreq3 = us.bins.bf)
   return(output)
   
 }
-
 
 
 # about getting GC content 

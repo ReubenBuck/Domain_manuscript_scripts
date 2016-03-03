@@ -6,7 +6,7 @@ library(GenomicRanges)
 
 load("~/Desktop/Domain_manuscript/R_objects/PCA_species")
 load("~/Desktop/Domain_manuscript/R_objects/Rep_info_species")
-source(file="~/Desktop/element_curves/element_curves_scripts/functions.R")
+source(file="~/Desktop/Domain_manuscript/Domain_manuscript_scripts/functions.R")
 
 ### Our functions will only work in the correct environmnet
 referenceDF <- data.frame(spec = "Human", genome = "hg19")
