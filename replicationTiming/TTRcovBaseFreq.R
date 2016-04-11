@@ -78,15 +78,19 @@ TTR <- RTdomain[[cellType]][RTdomain[[cellType]]$domain %in% c("UTZ","DTZ") ,]
 Edomain <- RTdomain[[cellType]][RTdomain[[cellType]]$domain == "ERD" ,]
 Ldomain <- RTdomain[[cellType]][RTdomain[[cellType]]$domain == "LRD" ,]
 
-# RTdomains <- read.table("Data/ConsTimingDomains", header = T)
-# Edomain <- RTdomains[RTdomains$domain == 1,]
-# Ldomain <- RTdomains[RTdomains$domain == -1,]
+RTdomains <- read.table("Data/ConsTimingDomains", header = T)
+Edomain <- RTdomains[RTdomains$domain == "ERD",]
+Ldomain <- RTdomains[RTdomains$domain == "LRD",]
 
+Edomain <- Edomain[complete.cases(Edomain),]
 InterE <- gaps(GRanges(seqnames = Rle(Edomain$chr),
                        ranges = IRanges(start = Edomain$start, end = Edomain$end)))
 
 # InterE <- GRanges(seqnames = Rle(Ldomain$chr),
 #                  ranges = IRanges(start = Ldomain$start, end = Ldomain$end))
+
+
+# maybe we could do it through the TTRs
 
 
 for(te in 1:length(names(joinRepChromatin))){
@@ -107,7 +111,7 @@ for(te in 1:length(names(joinRepChromatin))){
   
   #plot(featCovUTZ$rawRepCov5/featCovUTZ$baseFreq5, type = "l", ylim = c(0,.2))
   #plot(featCovUTZ$rawRepCov3/featCovUTZ$baseFreq3, type = "l", ylim = c(0,.2))
-  png(filename = paste("plots/repliSup/", TEchoice, "_3.png", sep = ""), width = 40, height = 10, res = 300,units = "cm")
+  png(filename = paste("plots/repliSup/", TEchoice, "_con.png", sep = ""), width = 40, height = 10, res = 300,units = "cm")
   upperY = max(c(featCovInterE$rawRepCov5/featCovInterE$baseFreq5, featCovE$rawRepCov3/featCovE$baseFreq3,
                  featCovInterE$rawRepCov3/featCovInterE$baseFreq3, featCovE$rawRepCov5/featCovE$baseFreq5))
   

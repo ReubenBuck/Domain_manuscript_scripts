@@ -300,187 +300,8 @@ General.G.WG <- function(X,neighbors,w.mat){
 
 
 
-region.finder <- function(s1,feature,SCALE = TRUE){
-  Group = rep(0, dim(s1)[1])
-  group = 0
-  for(i in seq(dim(s1)[1])){
-    if(all(s1$start[i] != s1$end[i-1]+1)){
-      group = group+1
-    }
-    Group[i] <- group
-  }
-  
-  # Now classify bins based the local variance of the scaled_r score
-  
-  if(SCALE == TRUE){
-    feature == scale(feature)
-  }
-  
-  Wiggle <- NULL
-  for(z in seq(group)){
-    scale_r <- feature[Group == z] 
-    zero <- rep(0, length(scale_r))
-    wiggle <- data.frame(scale_r_score = zero, mean = zero , bottom = zero , top = zero)
-    for(i in seq(along=scale_r)){	
-      if((i == length(scale_r)) & (i == 1)){
-        a <- mean(scale_r[i])
-        s <- sd(s1$archi.cor.scale)
-        n <- 1
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-      }else if(i == 1){
-        a <- mean(scale_r[i:(i+1)])
-        s <- sd(scale_r[i:(i+1)])
-        n <- 2
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-      }else if(i == length(scale_r)){
-        a <- mean(scale_r[(i-1):i])
-        s <- sd(scale_r[(i-1):i])
-        n <- 2
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-      }else if(i == 2){
-        a <- mean(scale_r[(i-1):(i+1)])
-        s <- sd(scale_r[(i-1):(i+1)])
-        n <- 3
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-      }else if(i == length(scale_r) - 1){
-        a <- mean(scale_r[(i-1):(i+1)])
-        s <- sd(scale_r[(i-1):(i+1)])
-        n <- 3
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-      }else{
-        a <- mean(scale_r[(i-2):(i+2)])
-        s <- sd(scale_r[(i-2):(i+2)])
-        n <- 5
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-      }
-      wiggle$scale_r_score[i] <- scale_r[i]
-      wiggle$mean[i] <- a 
-      wiggle$bottom[i] <- left		
-      wiggle$top[i] <- right
-    }
-    Wiggle <- rbind(Wiggle,wiggle )
-  }
-  
-  
-  Wiggle$r_class <- rep("M", dim(Wiggle)[1])
-  Wiggle$r_class[Wiggle$bottom > 0] <- "H"
-  Wiggle$r_class[Wiggle$top < 0] <- "L"
-  
-  return(Wiggle)
-}
-
-
 
 # (X - mean) / sd
-
-region.finder <- function(s1,feature,SCALE = TRUE){
-  Group = rep(0, dim(s1)[1])
-  group = 0
-  for(i in seq(dim(s1)[1])){
-    if(all(s1$start[i] != s1$end[i-1]+1)){
-      group = group+1
-    }
-    Group[i] <- group
-  }
-  
-  # Now classify bins based the local variance of the scaled_r score
-  
-  if(SCALE == TRUE){
-    feature == scale(feature)
-  }
-  
-  Wiggle <- NULL
-  for(z in seq(group)){
-    scale_r <- feature[Group == z] 
-    zero <- rep(0, length(scale_r))
-    wiggle <- data.frame(scale_r_score = zero, mean = zero , bottom = zero , top = zero)
-    for(i in seq(along=scale_r)){  
-      if((i == length(scale_r)) & (i == 1)){
-        a <- mean(scale_r[i])
-        s <- sd(s1$archi.cor.scale)
-        n <- 1
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-        Z.score = a/s
-      }else if(i == 1){
-        a <- mean(scale_r[i:(i+1)])
-        s <- sd(scale_r[i:(i+1)])
-        n <- 2
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-        Z.score = a/s
-      }else if(i == length(scale_r)){
-        a <- mean(scale_r[(i-1):i])
-        s <- sd(scale_r[(i-1):i])
-        n <- 2
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-        Z.score = a/s
-      }else if(i == 2){
-        a <- mean(scale_r[(i-1):(i+1)])
-        s <- sd(scale_r[(i-1):(i+1)])
-        n <- 3
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-        Z.score = a/s
-      }else if(i == length(scale_r) - 1){
-        a <- mean(scale_r[(i-1):(i+1)])
-        s <- sd(scale_r[(i-1):(i+1)])
-        n <- 3
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-        Z.score = a/s
-      }else{
-        a <- mean(scale_r[(i-2):(i+2)])
-        s <- sd(scale_r[(i-2):(i+2)])
-        n <- 5
-        error <- qnorm(0.975)*s/sqrt(n)
-        left <- a-error
-        right <- a+error
-        Z.score = a/s
-      }
-      wiggle$scale_r_score[i] <- scale_r[i]
-      wiggle$mean[i] <- a 
-      wiggle$bottom[i] <- left		
-      wiggle$top[i] <- right
-      wiggle$Z_score[i] <- Z.score
-      wiggle$sd[i] <- s
-    }
-    Wiggle <- rbind(Wiggle,wiggle )
-  }
-  
-  Wiggle <- data.frame(Wiggle)
-  Wiggle$P_val = 2*pnorm(-abs(Wiggle$Z_score))
-  Wiggle$FDR = p.adjust(Wiggle$P_val,"fdr")
-  
-  Wiggle$r_class.fdr <- rep("M", dim(Wiggle)[1])
-  Wiggle$r_class.fdr[ Wiggle$Z_score > 0 & Wiggle$FDR < 0.05] <- "H"
-  Wiggle$r_class.fdr[Wiggle$Z_score < 0 & Wiggle$FDR < 0.05] <- "L"
-  
-  
-  Wiggle$r_class.ci <- rep("M", dim(Wiggle)[1])
-  Wiggle$r_class.ci[Wiggle$bottom > 0] <- "H"
-  Wiggle$r_class.ci[Wiggle$top < 0] <- "L"
-  
-  return(Wiggle)
-}
 
 #seems i found the bug
 #we were getting the score for the whole group
@@ -1495,8 +1316,8 @@ covCalcPlot5prime3prime <- function(lenChoice, repChoice, repBins , repList ,
   ds.cov_3GRnum <- as.numeric(coverage(ds.cov_3GR)$seq)[(lenChoice+1):1]
   
   us.5bf <- as.numeric(coverage(us.binRange5))[(lenChoice+1):1]
-  ds.5bf <- as.numeric(coverage(ds.binRange5))
-  us.3bf <- as.numeric(coverage(us.binRange3))
+  ds.5bf <- as.numeric(coverage(ds.binRange5))[1:(lenChoice+1)]
+  us.3bf <- as.numeric(coverage(us.binRange3))[1:(lenChoice+1)]
   ds.3bf <- as.numeric(coverage(ds.binRange3))[(lenChoice+1):1]
   
   p = sum(repBins$repCov)/sum(repBins$end - repBins$start + 1)
@@ -1998,7 +1819,7 @@ rateRoller <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
 
 
 
-meanRoller <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
+meanRoller35 <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
   
   if(k%%2 != 1){
     stop("k must be odd")
@@ -2019,6 +1840,26 @@ meanRoller <- function(primeGC3, primeGC5, primeBF3, primeBF5, k){
   return(list(prime3gc = c(rate3start, Mrate3, rate3end), prime5gc=c(rate5start, Mrate5, rate5end)))
 }
 
+meanSdRoller <- function(repCov, bpFreq,k){
+  
+  if(k%%2 != 1){
+    stop("k must be odd")
+  }
+  
+  rate <- repCov/bpFreq
+  
+  Mrate <- rollmean(rate,k = k, align = "center")
+  SDrate <- rollapply(data = zoo(rate), width = k, FUN = sd)
+  
+  rateStartM <- rateEndM <- rateEndSD <- rateStartSD <- rep(NA, k/2)
+  for(i in 1:(k/2)){
+    rateStartM[i] <- mean(rate[1:(i+(i-1))])
+    rateEndM[length(rateEndM) - i + 1] <- mean(rate[length(rate):1][1:(i+(i-1))])
+    rateStartSD[i] <- sd(rate[1:(i+(i-1))])
+    rateEndSD[length(rateEndSD) - i + 1] <- sd(rate[length(rate):1][1:(i+(i-1))])
+  }
+  return(list(mean = c(rateStartM, Mrate, rateEndM), SD = c(rateStartSD, Mrate, rateEndSD)))
+}
 
 
 covImage <- function(lenChoice, repBins , repList ,chromList, 
@@ -2238,22 +2079,24 @@ covImage <- function(lenChoice, repBins , repList ,chromList,
 }  
 
 
-### this will get us a matrix with repeat info for equally sized regions around a boundry
+### this will get us a matrix with repeat info for equally sized regions around a boundary
 ### there will be a matrix for each repeat type looked at, and all matricies will be stored in a list
 
+# something going wrong with consesnsus set
 
-boundryAnotation <- function(repList, binSize, regionSize, repTypes, boundryLine, boundryChr){
+
+boundaryAnotation <- function(repList, binSize, regionSize, repTypes, boundaryLine, boundaryChr){
   TErateMatrixList <- NULL
   for(i in 1:length(repList)){
-    TErateMatrixList <- c(TErateMatrixList, list(matrix(nrow = length(boundryLine), ncol = regionSize/binSize)))
+    TErateMatrixList <- c(TErateMatrixList, list(matrix(nrow = length(boundaryLine), ncol = regionSize/binSize)))
   }
   names(TErateMatrixList) <- names(repList)
   
   for(i in 1:(regionSize/binSize)){
     print(i)
-    bin <- data.frame(chr = boundryChr, 
-                      start = (boundryLine - (regionSize/2)) + ((i - 1) * binSize), 
-                      end = (boundryLine - (regionSize/2)) + ((i) * binSize))
+    bin <- data.frame(chr = boundaryChr, 
+                      start = (boundaryLine - (regionSize/2)) + ((i - 1) * binSize), 
+                      end = (boundaryLine - (regionSize/2)) + ((i) * binSize))
     bin$Known <- binSize
     sorted <- binSort(rep = repList, bins = bin,TE.names = names(repList), repType = repTypes )
     for(te in 1:length(repList)){
@@ -2303,18 +2146,18 @@ binScoreSort <- function(repList, bins, TE.names, repType, metadata){
 
 
 
-boundryScoreAnotation <- function(repList, binSize, regionSize, repTypes, boundryLine, boundryChr, metadata, TE.names){
+boundaryScoreAnotation <- function(repList, binSize, regionSize, repTypes, boundaryLine, boundaryChr, metadata, TE.names){
   TErateMatrixList <- NULL
   for(i in 1:length(repList)){
-    TErateMatrixList <- c(TErateMatrixList, list(matrix(nrow = length(boundryLine), ncol = regionSize/binSize)))
+    TErateMatrixList <- c(TErateMatrixList, list(matrix(nrow = length(boundaryLine), ncol = regionSize/binSize)))
   }
   names(TErateMatrixList) <- TE.names
   
   for(i in 1:(regionSize/binSize)){
     print(i)
-    bin <- data.frame(chr = boundryChr, 
-                      start = (boundryLine - (regionSize/2)) + ((i - 1) * binSize), 
-                      end = (boundryLine - (regionSize/2)) + ((i) * binSize))
+    bin <- data.frame(chr = boundaryChr, 
+                      start = (boundaryLine - (regionSize/2)) + ((i - 1) * binSize), 
+                      end = (boundaryLine - (regionSize/2)) + ((i) * binSize))
     bin$Known <- binSize
     sorted <- binScoreSort(rep = repList, bins = bin,TE.names = TE.names, repType = repTypes , metadata = metadata)
     for(te in 1:length(repList)){

@@ -126,7 +126,7 @@ joinRepChromatin <- c(joinRep, `H1-hESC`, HepG2, K562, HUVEC, `HeLa-S3`, GM12878
 
 repTypes <- c(rep("repeats", length(joinRep)), rep("chromatin", length(`H1-hESC`)))
 
-len = 40000
+len = 300000
 
 TEs_intergenic_Alu <- covCalcPlot5prime3prime(lenChoice = len,repChoice = "Alu",repBins = intergenicJoinedFam,repList = joinRep,refgene = refgene,type = "intergenic",repType = "repeats")
 TEs_intergenic_old_L1 <- covCalcPlot5prime3prime(lenChoice = len,repChoice = "old_L1",repBins = intergenicJoinedFam,repList = joinRep,refgene = refgene,type = "intergenic",repType = "repeats")
@@ -300,7 +300,7 @@ dev.off()
 
 repTypes <- c(rep("repeats", length(joinRep)), rep("chromatin", length(`H1-hESC`)))
 
-len = 20000
+len = 300000
 
 TEs_intron_Alu <- covCalcPlot5prime3prime(lenChoice = len,repChoice = "Alu",repBins = intronJoinedFam,repList = joinRep,refgene = refgene,type = "intron",repType = "repeats")
 TEs_intron_old_L1 <- covCalcPlot5prime3prime(lenChoice = len,repChoice = "old_L1",repBins = intronJoinedFam,repList = joinRep,refgene = refgene,type = "intron",repType = "repeats")
@@ -366,7 +366,7 @@ cutLine3$cols <- as.character(cutLine3$cols)
 
 #### begin plotting 
 
-pdf(file = "plots/geneRep/intton/chromo.pdf", onefile = TRUE, width = 5 ,height = 3)
+pdf(file = "plots/geneRep/intton/chromo2.pdf", onefile = TRUE, width = 5 ,height = 3)
 layout(matrix(c(1,2), nrow = 1))
 par(mar = c(3,4,5,1))
 het.smooth <- smooth.spline(sqrt((len+1):1)*-1, prime5rateR[1,])
@@ -394,7 +394,7 @@ dev.off()
 
 
 for(i in 1:length(names(joinRep))){
-  pdf(file = paste("plots/geneRep/intton/TE",i, ".pdf",sep = ""), onefile = TRUE, width = 5 ,height = 3)
+  pdf(file = paste("plots/geneRep/intton/TE",i, "2.pdf",sep = ""), onefile = TRUE, width = 5 ,height = 3)
   layout(matrix(c(1,2), nrow = 1))
   par(mar = c(3,4,5,1))
   sdTE <- get(paste("TEs_intron_", names(joinRep)[i], sep = ""))
@@ -434,7 +434,7 @@ for(i in 1:length(names(joinRep))){
   dev.off()
 }
 
-pdf(file = "plots/geneRep/intton/extra.pdf", onefile = TRUE, width = 5 ,height = 3)
+pdf(file = "plots/geneRep/intton/extra2.pdf", onefile = TRUE, width = 5 ,height = 3)
 layout(matrix(c(1,2), nrow = 1))
 
 par(mar = c(3,4,5,1))
@@ -453,6 +453,9 @@ par(mar = c(6,5,6,5))
 image(matrix(c(0,.25,.5,.75,1)), col = grey.colors(n=5,1,0), xaxt = "n", yaxt = "n", main = "position frequency (kb)")
 axis(side = 1,at = c(0,.5,1), labels = c(0, 70, 140))
 dev.off()
+
+
+
 
 
 
