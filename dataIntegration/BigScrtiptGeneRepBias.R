@@ -10,10 +10,8 @@ setwd("~/Desktop/Domain_manuscript/")
 
 rm(list = ls())
 
-library(gridExtra)
 library(GenomicRanges)
 library(rtracklayer)
-library(zoo)
 
 spec1 <- "Human"
 genome = "hg19"
@@ -135,10 +133,12 @@ for(l in seq(0,max(intronJoinedFam$Known)+100,100)){
 regions = c("intergenic", "intron")
 TEcols <- c("red", "purple", "darkgreen","darkblue")
 
-pdf("~/Desktop/Domain_manuscript/plots/TEcovIntervalSizeAdjust.pdf", onefile = T)
+
 
 for(i in 1:4){
   for(j in 1:2){
+    pdf(paste("writing/round2_20160503/draftsTex/TexFigs/supFig/biasLine/", regions[j],"/",names(joinRep)[i],".pdf", sep = "" ), onefile = T, height = 5, width = 5)
+    
     TEfam = names(joinRep)[i]
     TEjoinFam = get(paste(regions[j], "JoinedFam", sep = ""))
     
@@ -154,13 +154,13 @@ for(i in 1:4){
     m <- n*p
     SD <- sqrt(n*p*(1-p))
     
-    plot(seq(2,8,by = .05)[summ > 0],agg$x/summ[summ > 0], main = paste(TEfam, regions[j]), xlim = c(1.9,7), 
-         xlab = "interval length (kb)", ylab = "TE coverage per bp", ylim = c(0,.22), pch = 16, col = TEcols[i], xaxt = "n")
-    axis(side = 1, at = c(seq(0,8,by = 1), seq(log10(500), 8, by = 1)), labels = c((10^seq(0,8,by = 1))/1000, (10^seq(log10(500), 8, by = 1))/1000))
-    lines(seq(2,8,by = .05)[summ > 0],m/aggp$x)
+    plot(seq(2,8,by = .05)[summ > 0],agg$x/summ[summ > 0], main = "", xlim = c(1.9,7), 
+         xlab = "interval length (kb)", ylab = "RTN density", ylim = c(0,.22), pch = 16, col = TEcols[i], xaxt = "n")
+    axis(side = 1, at = c(seq(0,8,by = 1)), labels = c((10^seq(0,8,by = 1))/1000))
+    lines(seq(2,8,by = .05)[summ > 0],m/aggp$x, lty = 2)
     lines(seq(2,8,by = .05)[summ > 0],(m + (3*SD))/aggp$x)
     lines(seq(2,8,by = .05)[summ > 0],(m - (3*SD))/aggp$x)
-    lo <- loess(agg$x/summ[summ > 0] ~ seq(2,8,by = .05)[summ > 0])
+    lo <- loess(agg$x/summ[summ > 0] ~ seq(2,8,by = .05)[summ > 0], span = .2)
     pred <- predict(lo,newdata = seq(2,8,by = .05),se = T)
     lines(seq(2,8,by = .05), pred$fit, col = TEcols[i], lwd = 3)
     # now we know what the preferance looks like we just have to apply it to real data. 
@@ -180,17 +180,17 @@ for(i in 1:4){
                                                                      bias = (predict(lo,newdata = log10(sizesMean)))/(m/aggp$x)[1])
            )
     
-    
+    dev.off()
   }
 }
-dev.off()
+
 
 
 intergenicLenChoice = max(intergenicJoinedFam$end - intergenicJoinedFam$start)/2
 intronLenChoice = max(intronJoinedFam$end - intronJoinedFam$start)/2
 
 
-region = "intron"
+region = "intergenic"
 #TEfam = "new_L1"
 
 
@@ -229,20 +229,15 @@ for(i in 1:4){
   SPbiasData <- smooth.spline((biasData$position[complete.cases(biasData)]),biasData$bias[complete.cases(biasData)],all.knots = TRUE)
   biasPred <- predict(SPbiasData, usePos)
   
-#  lines(log10(usePos), aggTEmean$x + (2* aggTEsd$x), col = 2)
-#  lines(log10(usePos), aggTEmean$x - (2* aggTEsd$x), col = 2) 
-#   lines(log10(usePos), (aggTEmean$x + (2* aggTEsd$x)) / biasPred$y, col = 2)
-#   lines(log10(usePos), (aggTEmean$x - (2* aggTEsd$x)) / biasPred$y, col = 2)
-
   shape.x <- c(log10(usePos), rev(log10(usePos)))
   shape.y <- c(aggTEmean$x + (2* aggTEsd$x), rev(aggTEmean$x - (2* aggTEsd$x)))
   shape.y.adj <- c((aggTEmean$x + (2* aggTEsd$x))/biasPred$y, rev((aggTEmean$x - (2* aggTEsd$x))/biasPred$y))
   
   sd <- (sqrt(bpFreq * TEs_posStats$p * (1 - TEs_posStats$p))/(bpFreq))
   
-  pdf(file = paste("plots/geneRep/fitted/", region, "/", TEfam,".pdf", sep = ""), height = 5, width = 10)
-  plot(log10(1:(lenChoice +1)), rate, col = 3, type = "n", ylim = c(0,.2), 
-       main = paste(TEfam,region), ylab = "TE coverage Rate", 
+  pdf(file = paste("writing/round2_20160503/draftsTex/TexFigs/supFig/corrected/", region, "/", TEfam,".pdf", sep = ""), height = 3, width = 10)
+  plot(log10(1:(lenChoice +1)), rate, col = 3, type = "n", ylim = c(0,.25), 
+       main = "", ylab = "RTN density", 
        xlab = "distance from boundary (log10 bp)")
   lines(log10(usePos), aggTEmean$x, type = "l", col = "grey60", lwd = 3)
   polygon(shape.x, shape.y, density =40,border = 0,col = "grey60")
@@ -252,7 +247,7 @@ for(i in 1:4){
   
   lines(log10(1:(lenChoice+1)), TEs_posStats$p + 2*sd, col = 1, lwd = 2)
   lines(log10(1:(lenChoice+1)), TEs_posStats$p - 2*sd, col = 1, lwd = 2)  
-  legend("topleft",legend = c("uncorrected", "corrected"), fill = c("grey60", TEcols[i]))
+  legend("topleft",legend = c("uncorrected", "corrected"), fill = c("grey60", TEcols[i]), bty = "n")
   # question still is, are we accuratly capturing the bias effect through our smoothing
   dev.off()
   
@@ -405,6 +400,16 @@ plot.new()
 grid.table(round(ObsRes, digits = 3))
 mtext(text = "observed values",side = 3)
 dev.off()
+
+
+
+
+
+##########
+##
+#   This is the enhancer area
+######
+
 
 # lets get enhancers as a rep type object
 
@@ -661,7 +666,193 @@ for(i in 1:4){
 
 
 
+files <- list.files("Data/OpenChromSynth/")
+allOpen <- NULL
+for(i in 1:length(files)){
+  dat <- read.table(paste("Data/OpenChromSynth/",files[i], sep = ""))
+  dat[,22] <- as.factor(gsub("_[0-9]+","",dat[,4]))
+  colnames(dat) <- c("chr", "start", "end", "hitTypeNumber", "score", "strand", "start2", "end2", "colour", "Pval",
+                     "dnaseSig", "dnasePval", "faireSig", "fairePval", "polIISig", "polIIPval", "ctcfSig","ctcfPval","cmycSig", "cmycPval", "ocCode", "ocType")
+  name <- gsub(pattern = "_OC.bed", replacement = "",x = files[i])
+  assign(name, dat)
+  allOpen <- c(allOpen, list(get(name)))
+}
+names(allOpen) <- gsub(pattern = "_OC.bed", replacement = "", x = files)
+
+
+allCell <- NULL
+for(i in 2:length(allOpen)){
+  OpenCell <- allOpen[[i]]
+  OpenCell[,"cellName"] <- names(allOpen)[i]
+  allCell <- rbind(allCell,OpenCell)
+}
 
 
 
+#OpenCell <- allOpen$H1_ES
+#OpenCell <- OpenCell[OpenCell$ocType == "DNaseOnly",]
+
+
+OpenCell <- allCell
+OpenCell <- OpenCell[OpenCell$dnasePval > 6,]
+
+Open.gr <- reduce(GRanges(seqnames = Rle(OpenCell$chr),
+                       ranges = IRanges(start = OpenCell$start, end = OpenCell$end)))
+Open.gr <- intersect(Open.gr,Intergenic.GR)
+openOL <- as.matrix(findOverlaps(Intergenic.GR, Open.gr))
+intergenicOpen <- intergenicJoinedFam[,c("chr", "start", "end","Known")]
+openAgg <- aggregate(x = width(Open.gr[openOL[,2]]), by = list(openOL[,1]), FUN = sum)
+intergenicOpen[openAgg$Group.1,"openChrom"] <- openAgg$x
+intergenicOpen$openChrom[is.na(intergenicOpen$openChrom)] <- 0
+OpenChromList = list(openChrom = data.frame(genoName = OpenCell$chr, genoStart = OpenCell$start, genoEnd = OpenCell$end))
+
+
+OpenRate <- sum(intergenicOpen$openChrom, na.rm = T)/sum(intergenicOpen$Known)
+
+
+
+
+OpenStatBins = intergenicOpen
+# OpenStatBins$start=OpenStatBins$start-5000
+# OpenStatBins$end = OpenStatBins$end + 5000
+# OpenStatGR <- GRanges(seqnames = Rle(OpenStatBins$chr),
+#                       ranges = IRanges(start = OpenStatBins$start, end = OpenStatBins$end))
+#OpenStatBins = OpenStatBins[countOverlaps(OpenStatGR) == 1 & countOverlaps(query = OpenStatGR, subject = refgene.gr) == 2,]
+lenChoice = max(OpenStatBins$end - OpenStatBins$start)/2
+Open_posStatALL = covCalcPlot5prime3prime(lenChoice = lenChoice, repChoice = "openChrom", 
+                                           repBins = OpenStatBins, repList = OpenChromList, 
+                                           refgene = refgene, type = "intergenic", repType = "repeats")
+
+
+OpenStatBins = intergenicOpen[OLintergenicE[,1],]
+lenChoice = max(OpenStatBins$end - OpenStatBins$start)/2
+Open_posStatE = covCalcPlot5prime3prime(lenChoice = lenChoice, repChoice = "openChrom", 
+                                          repBins = OpenStatBins, repList = OpenChromList, 
+                                          refgene = refgene, type = "intergenic", repType = "repeats")
+
+
+OpenStatBins = intergenicOpen[OLintergenicL[,1],]
+lenChoice = max(OpenStatBins$end - OpenStatBins$start)/2
+Open_posStatL = covCalcPlot5prime3prime(lenChoice = lenChoice, repChoice = "openChrom", 
+                                          repBins = OpenStatBins, repList = OpenChromList, 
+                                          refgene = refgene, type = "intergenic", repType = "repeats")
+
+
+
+
+
+
+i = 3
+TEfam = names(joinRep)[i]
+
+
+region = "intergenic"
+posStatBins = rbind(get(paste("E",region,"Counts",sep = "")), get(paste("L",region,"Counts",sep = "")))
+# posStatBins$start=posStatBins$start-5000
+# posStatBins$end = posStatBins$end + 5000
+# posStatGR <- GRanges(seqnames = Rle(posStatBins$chr),
+#                       ranges = IRanges(start = posStatBins$start, end = posStatBins$end))
+# posStatBins = posStatBins[countOverlaps(posStatGR) == 1 & countOverlaps(query = posStatGR, subject = refgene.gr) == 2,]
+lenChoice = max(posStatBins$end - posStatBins$start)/2
+TEs_posStats <- covCalcPlot5prime3prime(lenChoice = lenChoice,repChoice = TEfam,repBins = posStatBins,repList = joinRep,refgene = refgene,type = region,repType = "repeats")
+
+
+
+rawCov <- (TEs_posStats$rawRepCov3 + TEs_posStats$rawRepCov5[(lenChoice+1):1])
+bpFreq <- (TEs_posStats$baseFreq3prime + TEs_posStats$baseFreq5prime[(lenChoice+1):1])
+bpFreq[is.na(bpFreq)] <- 1
+Allrate <- rawCov/bpFreq
+
+TEs_posStatsAll <- TEs_posStats
+
+
+posStatBins = get(paste("E",region,"Counts",sep = ""))
+lenChoice = max(posStatBins$end - posStatBins$start)/2
+
+TEs_posStats <- covCalcPlot5prime3prime(lenChoice = lenChoice,repChoice = TEfam,repBins = posStatBins,repList = joinRep,refgene = refgene,type = region,repType = "repeats")
+
+rawCov <- (TEs_posStats$rawRepCov3 + TEs_posStats$rawRepCov5[(lenChoice+1):1])
+bpFreq <- (TEs_posStats$baseFreq3prime + TEs_posStats$baseFreq5prime[(lenChoice+1):1])
+bpFreq[is.na(bpFreq)] <- 1
+Erate <- rawCov/bpFreq
+
+TEs_posStatsE <- TEs_posStats
+
+
+posStatBins = get(paste("L",region,"Counts",sep = ""))
+lenChoice = max(posStatBins$end - posStatBins$start)/2
+
+TEs_posStats <- covCalcPlot5prime3prime(lenChoice = lenChoice,repChoice = TEfam,repBins = posStatBins,repList = joinRep,refgene = refgene,type = region,repType = "repeats")
+
+rawCov <- (TEs_posStats$rawRepCov3 + TEs_posStats$rawRepCov5[(lenChoice+1):1])
+bpFreq <- (TEs_posStats$baseFreq3prime + TEs_posStats$baseFreq5prime[(lenChoice+1):1])
+bpFreq[is.na(bpFreq)] <- 1
+Lrate <- rawCov/bpFreq
+
+TEs_posStatsL <- TEs_posStats
+
+
+
+
+
+
+layout(matrix(c(1,2),nrow = 2))
+
+lenChoice = 10000
+
+plot((1:lenChoice), (TEs_posStatsAll$rawRepCov3/TEs_posStatsAll$baseFreq3prime)[1:lenChoice] , lty=1, , type="l",ylim = c(0,.3),)
+lines((1:lenChoice), (TEs_posStatsE$rawRepCov3/TEs_posStatsE$baseFreq3prime)[1:lenChoice] , lty=1, col = 2)
+lines((1:lenChoice), (TEs_posStatsL$rawRepCov3/TEs_posStatsL$baseFreq3prime)[1:lenChoice] , lty=1, col = 3)
+
+par(new=T)
+plot((1:lenChoice), (Open_posStatALL$rawRepCov3/Open_posStatALL$baseFreq3prime)[1:lenChoice] , lty = 3, type = "l", ylim = c(0,.3))
+lines((1:lenChoice), (Open_posStatE$rawRepCov3/Open_posStatE$baseFreq3prime)[1:lenChoice] , col = 2, lty = 3)
+lines((1:lenChoice), (Open_posStatL$rawRepCov3/Open_posStatL$baseFreq3prime)[1:lenChoice] , col = 3, lty = 3)
+
+plot((1:lenChoice), rev(TEs_posStatsAll$rawRepCov5/TEs_posStatsAll$baseFreq5prime)[1:lenChoice] , lty=1, , type="l",ylim = c(0,.3))
+lines((1:lenChoice), rev(TEs_posStatsE$rawRepCov5/TEs_posStatsE$baseFreq5prime)[1:lenChoice] , lty=1, col = 2)
+lines((1:lenChoice), rev(TEs_posStatsL$rawRepCov5/TEs_posStatsL$baseFreq5prime)[1:lenChoice] , lty=1, col = 3)
+
+par(new=T)
+plot((1:lenChoice), rev(Open_posStatALL$rawRepCov5/Open_posStatALL$baseFreq5prime)[1:lenChoice] , lty = 3, type = "l", ylim = c(0,.3))
+lines((1:lenChoice), rev(Open_posStatE$rawRepCov5/Open_posStatE$baseFreq5prime)[1:lenChoice] , col = 2, lty = 3)
+lines((1:lenChoice),  rev(Open_posStatL$rawRepCov5/Open_posStatL$baseFreq5prime)[1:lenChoice] , col = 3, lty = 3)
+
+
+
+ratioEL5Open <- rev(Open_posStatE$rawRepCov5/Open_posStatE$baseFreq5prime)[1:lenChoice]/rev(Open_posStatL$rawRepCov5/Open_posStatL$baseFreq5prime)[1:lenChoice]
+ratioEL5Alu <- rev(TEs_posStatsE$rawRepCov5/TEs_posStatsE$baseFreq5prime)[1:lenChoice]/rev(TEs_posStatsL$rawRepCov5/TEs_posStatsL$baseFreq5prime)[1:lenChoice]
+
+ratioEL3Open <- (Open_posStatE$rawRepCov3/Open_posStatE$baseFreq3prime)[1:lenChoice]/(Open_posStatL$rawRepCov3/Open_posStatL$baseFreq3prime)[1:lenChoice]
+ratioEL3Alu <- (TEs_posStatsE$rawRepCov3/TEs_posStatsE$baseFreq3prime)[1:lenChoice]/(TEs_posStatsL$rawRepCov3/TEs_posStatsL$baseFreq3prime)[1:lenChoice]
+
+plot(ratioEL5Alu, type = "l", ylim = c(0,5))
+lines(ratioEL5Open, col= 1, lty = 3)
+
+plot(ratioEL3Alu, type = "l", ylim = c(0,5))
+lines(ratioEL3Open, col= 1, lty = 3)
+
+
+
+# lets say the ratios don't match up. 
+# Is this something to do with differences in the small regions
+
+OpenStatBins = intergenicOpen[OLintergenicE[,1],]
+plot(log10(OpenStatBins$Known), (OpenStatBins$openChrom/(OpenStatBins$Known)), pch = 16, cex = .3)
+
+plot(log10(EintergenicCounts$Known),(EintergenicCounts$Alu/EintergenicCounts$Known), col = 2, cex = .1, pch = 16)
+points(log10(LintergenicCounts$Known),(LintergenicCounts$Alu/LintergenicCounts$Known), col = 3, cex = .1, pch = 16)
+
+
+OpenStatBins = intergenicOpen[OLintergenicE[,1],]
+points(log10(OpenStatBins$Known), (OpenStatBins$openChrom/(OpenStatBins$Known)), pch = 16, cex = .1, col = 4)
+OpenStatBins = intergenicOpen[OLintergenicL[,1],]
+points(log10(OpenStatBins$Known), (OpenStatBins$openChrom/(OpenStatBins$Known)), pch = 16, cex = .1, col = 5)
+
+
+
+layout(1)
+OpenStatBins = intergenicOpen[OLintergenicL[,1],]
+
+plot((OpenStatBins$openChrom)/LintergenicCounts$Known, (LintergenicCounts$new_L1)/LintergenicCounts$Known, pch = 16, cex = .3)
 
