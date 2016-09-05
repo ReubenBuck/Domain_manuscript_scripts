@@ -288,9 +288,16 @@ DomainMerge <- merge(ErdMerge, LrdMerge, by.x = 1, by.y =1)
 # Should we put this in a table 
 
 
-
+ordering <- boxplot(log10(IntergenicdfE$IntergenicBases) ~ IntergenicdfE$samples)
+orderNo <- order(ordering$stats[3,])
+orderName <- ordering$names[order(ordering$stats[3,])]
 
 ##### plotting the Data
+
+IntergenicdfL$samples <- factor(IntergenicdfL$samples,levels = orderName)
+IntergenicdfE$samples <- factor(IntergenicdfE$samples,levels = orderName)
+IntrondfL$samples <- factor(IntrondfL$samples,levels = orderName)
+IntrondfE$samples <- factor(IntrondfE$samples,levels = orderName)
 
 
 pdf(file = "plots/consituativeDomains/IntervalSizesInDomains.pdf", onefile = T, width = 10, height = 6)
@@ -304,9 +311,9 @@ boxplot(log10(IntrondfE$IntronBases) ~ IntrondfE$samples,
         ylab = "", names = rep("", 17), main = "Intergenic region Size",
         axes = FALSE, ylim =c(6,8))
 
-text(1:nrow(DFmergeEintergenic),rep(7.75, nrow(DFmergeEintergenic)),labels = round(DFmergeEintergenic$intergenicBp/1000000))
-text(1:nrow(DFmergeEintergenic),rep(7, nrow(DFmergeEintergenic)),labels = round(DFmergeEintergenic$ERDbp/1000000))
-text(1:nrow(DFmergeEintergenic),rep(6.25, nrow(DFmergeEintergenic)),labels = round(DFmergeEintergenic$ERD_Intergenic_Proportion * 100,digits =1))
+text(1:nrow(DFmergeEintergenic),rep(7.75, nrow(DFmergeEintergenic)),labels = round(DFmergeEintergenic$intergenicBp/1000000)[orderNo])
+text(1:nrow(DFmergeEintergenic),rep(7, nrow(DFmergeEintergenic)),labels = round(DFmergeEintergenic$ERDbp/1000000)[orderNo])
+text(1:nrow(DFmergeEintergenic),rep(6.25, nrow(DFmergeEintergenic)),labels = round(DFmergeEintergenic$ERD_Intergenic_Proportion * 100,digits =1)[orderNo])
 
 mtext("Intergenic\n(Mb)", side = 2,at = 7.75, las = 1, line =  3.5,cex = .7,adj = 0)
 mtext("Early domain\n(Mb)", side = 2,at = 7, las = 1, line =  3.5,cex = .7,adj = 0)
@@ -318,7 +325,7 @@ par(mar = c(2,5,0,5))
 
 boxplot(log10(IntergenicdfE$IntergenicBases) ~ IntergenicdfE$samples, las = 2, varwidth = TRUE, notch = TRUE,
         ylab = "interval size (log10 bp)", names = rep("", 17),ylim = c(2,7), main = "",
-        col = c(rep(0,3), 2, rep(0,13)))
+        col = c(2, rep(0,16)))
 axis(side = 4,at = 2 + ((7-2)/2), labels = "Early")
 abline(h = mean(log10(IntergenicdfL$IntergenicBases)), col = 4, lty = 2)
 
@@ -329,9 +336,9 @@ boxplot(log10(IntrondfE$IntronBases) ~ IntrondfE$samples,
         ylab = "", names = rep("", 17),
         axes = FALSE, ylim =c(6,8))
 
-text(1:nrow(DFmergeLintergenic),rep(7.75, nrow(DFmergeLintergenic)),labels = round(DFmergeLintergenic$intergenicBp/1000000))
-text(1:nrow(DFmergeLintergenic),rep(7, nrow(DFmergeLintergenic)),labels = round(DFmergeLintergenic$LRDbp/1000000))
-text(1:nrow(DFmergeLintergenic),rep(6.25, nrow(DFmergeLintergenic)),labels = round(DFmergeLintergenic$LRD_Intergenic_Proportion * 100,digits =1))
+text(1:nrow(DFmergeLintergenic),rep(7.75, nrow(DFmergeLintergenic)),labels = round(DFmergeLintergenic$intergenicBp/1000000)[orderNo])
+text(1:nrow(DFmergeLintergenic),rep(7, nrow(DFmergeLintergenic)),labels = round(DFmergeLintergenic$LRDbp/1000000)[orderNo])
+text(1:nrow(DFmergeLintergenic),rep(6.25, nrow(DFmergeLintergenic)),labels = round(DFmergeLintergenic$LRD_Intergenic_Proportion * 100,digits =1)[orderNo])
 
 mtext("Intergenic\n(Mb)", side = 2,at = 7.75, las = 1, line =  3.5,cex = .7,adj = 0)
 mtext("Late domain\n(Mb)", side = 2,at = 7, las = 1, line =  3.5,cex = .7,adj = 0)
@@ -340,7 +347,7 @@ mtext("Intergenic\ncoverage (%)", side = 2,at = 6.25, las = 1, line = 3.5,cex = 
 
 par(mar = c(10,5,0,5))
 boxplot(log10(IntergenicdfL$IntergenicBases) ~ IntergenicdfL$samples, las = 2, varwidth = TRUE, notch = TRUE,
-        ylab = "interval size (log10 bp)",ylim = c(2,7), main = "",col = c(rep(0,3), 2, rep(0,13)))
+        ylab = "interval size (log10 bp)",ylim = c(2,7), main = "",col = c( 2, rep(0,16)))
 
 axis(side = 4,at = 2 + ((7-2)/2), labels = "Late")
 abline(h = mean(log10(IntergenicdfE$IntergenicBases)), col = 4, lty = 2)
@@ -359,9 +366,9 @@ boxplot(log10(IntrondfE$IntronBases) ~ IntrondfE$samples,
         ylab = "", names = rep("", 17), main = "Intron region Size",
         axes = FALSE, ylim =c(6,8))
 
-text(1:nrow(DFmergeEintron),rep(7.75, nrow(DFmergeEintron)),labels = round(DFmergeEintron$intronBp/1000000))
-text(1:nrow(DFmergeEintron),rep(7, nrow(DFmergeEintron)),labels = round(DFmergeEintron$ERDbp/1000000))
-text(1:nrow(DFmergeEintron),rep(6.25, nrow(DFmergeEintron)),labels = round(DFmergeEintron$ERD_Intron_Proportion * 100,digits =1))
+text(1:nrow(DFmergeEintron),rep(7.75, nrow(DFmergeEintron)),labels = round(DFmergeEintron$intronBp/1000000)[orderNo])
+text(1:nrow(DFmergeEintron),rep(7, nrow(DFmergeEintron)),labels = round(DFmergeEintron$ERDbp/1000000)[orderNo])
+text(1:nrow(DFmergeEintron),rep(6.25, nrow(DFmergeEintron)),labels = round(DFmergeEintron$ERD_Intron_Proportion * 100,digits =1)[orderNo])
 
 mtext("Intron\n(Mb)", side = 2,at = 7.75, las = 1, line =  3.5,cex = .7,adj = 0)
 mtext("Early domain\n(Mb)", side = 2,at = 7, las = 1, line =  3.5,cex = .7,adj = 0)
@@ -373,7 +380,7 @@ par(mar = c(2,5,0,5))
 
 boxplot(log10(IntrondfE$IntronBases) ~ IntrondfE$samples, las = 2, varwidth = TRUE, notch = TRUE,
         ylab = "interval size (log10 bp)", names = rep("", 17),ylim = c(2,6), main = "",
-        col = c(rep(0,3), 2, rep(0,13)))
+        col = c(2, rep(0,16)))
 axis(side = 4,at = 2 + ((6-2)/2), labels = "Early")
 abline(h = mean(log10(IntrondfL$IntronBases)), col = 4, lty = 2)
 
@@ -384,9 +391,9 @@ boxplot(log10(IntrondfE$IntronBases) ~ IntrondfE$samples,
         ylab = "", names = rep("", 17),
         axes = FALSE, ylim =c(6,8))
 
-text(1:nrow(DFmergeLintron),rep(7.75, nrow(DFmergeLintron)),labels = round(DFmergeLintron$intronBp/1000000))
-text(1:nrow(DFmergeLintron),rep(7, nrow(DFmergeLintron)),labels = round(DFmergeLintron$LRDbp/1000000))
-text(1:nrow(DFmergeLintron),rep(6.25, nrow(DFmergeLintron)),labels = round(DFmergeLintron$LRD_Intron_Proportion * 100,digits =1))
+text(1:nrow(DFmergeLintron),rep(7.75, nrow(DFmergeLintron)),labels = round(DFmergeLintron$intronBp/1000000)[orderNo])
+text(1:nrow(DFmergeLintron),rep(7, nrow(DFmergeLintron)),labels = round(DFmergeLintron$LRDbp/1000000)[orderNo])
+text(1:nrow(DFmergeLintron),rep(6.25, nrow(DFmergeLintron)),labels = round(DFmergeLintron$LRD_Intron_Proportion * 100,digits =1)[orderNo])
 
 mtext("Intron\n(Mb)", side = 2,at = 7.75, las = 1, line =  3.5,cex = .7,adj = 0)
 mtext("Late domain\n(Mb)", side = 2,at = 7, las = 1, line =  3.5,cex = .7,adj = 0)
@@ -395,7 +402,7 @@ mtext("Intron coverage\n(%)", side = 2,at = 6.25, las = 1, line = 3.5,cex = .7,a
 
 par(mar = c(10,5,0,5))
 boxplot(log10(IntrondfL$IntronBases) ~ IntrondfL$samples, las = 2, varwidth = TRUE, notch = TRUE,
-        ylab = "interval size (log10 bp)", ylim = c(2,6), col = c(rep(0,3), 2, rep(0,13)))
+        ylab = "interval size (log10 bp)", ylim = c(2,6), col = c( 2, rep(0,16)))
 axis(side = 4,at = 2 + ((6-2)/2), labels = "Late")
 abline(h = mean(log10(IntrondfE$IntronBases)), col = 4, lty = 2)
 mtext(text = "Sample", side = 1, line = 8, cex = 1.2)

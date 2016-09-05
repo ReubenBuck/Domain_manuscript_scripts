@@ -137,7 +137,7 @@ TEcols <- c("red", "purple", "darkgreen","darkblue")
 
 for(i in 1:4){
   for(j in 1:2){
-    pdf(paste("writing/round2_20160503/draftsTex/TexFigs/supFig/biasLine/", regions[j],"/",names(joinRep)[i],".pdf", sep = "" ), onefile = T, height = 5, width = 5)
+    pdf(paste("writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/biasLine/", regions[j],"/",names(joinRep)[i],".pdf", sep = "" ), onefile = T, height = 5, width = 5)
     
     TEfam = names(joinRep)[i]
     TEjoinFam = get(paste(regions[j], "JoinedFam", sep = ""))
@@ -155,7 +155,7 @@ for(i in 1:4){
     SD <- sqrt(n*p*(1-p))
     
     plot(seq(2,8,by = .05)[summ > 0],agg$x/summ[summ > 0], main = "", xlim = c(1.9,7), 
-         xlab = "interval length (kb)", ylab = "RTN density", ylim = c(0,.22), pch = 16, col = TEcols[i], xaxt = "n")
+         xlab = "interval length (kb)", ylab = "retrotransposon density", ylim = c(0,.22), pch = 16, col = TEcols[i], xaxt = "n")
     axis(side = 1, at = c(seq(0,8,by = 1)), labels = c((10^seq(0,8,by = 1))/1000))
     lines(seq(2,8,by = .05)[summ > 0],m/aggp$x, lty = 2)
     lines(seq(2,8,by = .05)[summ > 0],(m + (3*SD))/aggp$x)
@@ -190,7 +190,7 @@ intergenicLenChoice = max(intergenicJoinedFam$end - intergenicJoinedFam$start)/2
 intronLenChoice = max(intronJoinedFam$end - intronJoinedFam$start)/2
 
 
-region = "intergenic"
+region = "intron"
 #TEfam = "new_L1"
 
 
@@ -235,9 +235,10 @@ for(i in 1:4){
   
   sd <- (sqrt(bpFreq * TEs_posStats$p * (1 - TEs_posStats$p))/(bpFreq))
   
-  pdf(file = paste("writing/round2_20160503/draftsTex/TexFigs/supFig/corrected/", region, "/", TEfam,".pdf", sep = ""), height = 3, width = 10)
+  pdf(file = paste("writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/corrected/", region, "/", TEfam,".pdf", sep = ""), height = 3, width = 10)
+  par(mar = c(5,5,5,2))
   plot(log10(1:(lenChoice +1)), rate, col = 3, type = "n", ylim = c(0,.25), 
-       main = "", ylab = "RTN density", 
+       main = "", ylab = "retrotransposon\ndensity", 
        xlab = "distance from boundary (log10 bp)")
   lines(log10(usePos), aggTEmean$x, type = "l", col = "grey60", lwd = 3)
   polygon(shape.x, shape.y, density =40,border = 0,col = "grey60")

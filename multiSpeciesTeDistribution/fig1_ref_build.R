@@ -80,8 +80,21 @@ dev.off()
 
 
 # else where I'll plot the PCA with coloured arrows. 
-    
-    
+
+
+# so lets read in replication domains
+
+
+RDs <- read.table(file = "~/Desktop/Domain_manuscript/Data/DNN_HMM_repliDomains/GSE53984_GSM923452_Huvec_Rep1_segments.bed", 
+                  col.names = c("chr", "start", "end", "value"), colClasses = c("character", "integer", "integer", "character"))
+RDs$value[RDs$value == "ERD"] = 1
+RDs$value[RDs$value == "LRD"] = -1
+RDs$value[RDs$value == "UTZ"] = NA
+RDs$value[RDs$value == "DTZ"] = NA
+RDs <- RDs[complete.cases(RDs),]    
+RDs$value <- as.numeric(RDs$value)
+RDs <- RDs[RDs$end - RDs$start + 1 >= 2000000,]
+
 library("circlize")
 
 layout(1)
@@ -89,10 +102,13 @@ par(mar = c(1,1,1,1))
 
 
 
-
 pdf(file = "~/Desktop/Domain_manuscript/plots/FIg1/ancPCAcircos.pdf",onefile = T)
 
-circos.initializeWithIdeogram(species = "hg19", plotType = c( "labels"))
+circos.initializeWithIdeogram(species = "hg19", plotType = c( "labels"), sort.chr = T)
+circos.par("track.height" = .05)
+circos.genomicTrackPlotRegion(data = RDs, bg.border = "white", panel.fun = function(region,value, ...){
+  circos.genomicRect(region,value,col = ifelse(value[[1]] > 0 , "red","white"), border = NA, ...)
+})
 
 for(s in nrow(speciesDF):1){
   List <- get(as.character(speciesDF$spec[s]))
@@ -100,8 +116,8 @@ for(s in nrow(speciesDF):1){
   coords <- coords$HumanRef$binInfo[List$ancient_PC$remodeldPC$refNo,]
   datQue <- List$ancient_PC$remodeldPC$quePC
   bedS <- data.frame(coords[,1:3], value = datQue)
-  bedS = bedS[order(bedS$value),][c(1:as.integer(.1*nrow(bedS)), (nrow(bedS)-(as.integer(.1*nrow(bedS))-1)):nrow(bedS)),]
-  circos.par("track.height" = .1)
+  bedS = bedS[order(bedS$value),][c(1:as.integer(.2*nrow(bedS)), (nrow(bedS)-(as.integer(.2*nrow(bedS))-1)):nrow(bedS)),]
+  circos.par("track.height" = .08)
   circos.genomicTrackPlotRegion(data = bedS, panel.fun = function(region,value, ...){
     circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, "coral3", "aquamarine4"), border = NA, ...)
   })
@@ -109,15 +125,21 @@ for(s in nrow(speciesDF):1){
 }
 
 bedH = data.frame(HumanPCA$binInfo[,1:3], value = (HumanPCA$x$ancient_PC))
-bedH = bedH[order(bedH$value),][c(1:as.integer(.1*nrow(bedH)), (nrow(bedH)-(as.integer(.1*nrow(bedH))-1)):nrow(bedH)),]
-circos.par("track.height" = .1)
+bedH = bedH[order(bedH$value),][c(1:as.integer(.2*nrow(bedH)), (nrow(bedH)-(as.integer(.2*nrow(bedH))-1)):nrow(bedH)),]
+circos.par("track.height" = .08)
 circos.genomicTrackPlotRegion(data = bedH, panel.fun = function(region,value, ...){
   circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, "coral3", "aquamarine4"), border = NA, ...)
 })
 dev.off()
 
+
+
 pdf(file = "~/Desktop/Domain_manuscript/plots/FIg1/newPCAcircos.pdf",onefile = T)
 circos.initializeWithIdeogram(species = "hg19", plotType = c( "labels"))
+circos.par("track.height" = .05)
+circos.genomicTrackPlotRegion(data = RDs, bg.border = "white", panel.fun = function(region,value, ...){
+  circos.genomicRect(region,value,col = ifelse(value[[1]] > 0 , "red","white"), border = NA, ...)
+})
 
 for(s in nrow(speciesDF):1){
   List <- get(as.character(speciesDF$spec[s]))
@@ -125,8 +147,8 @@ for(s in nrow(speciesDF):1){
   coords <- coords$HumanRef$binInfo[List$new_SINE_PC$remodeldPC$refNo,]
   datQue <- List$new_SINE_PC$remodeldPC$quePC
   bedS <- data.frame(coords[,1:3], value = datQue)
-  bedS = bedS[order(bedS$value),][c(1:as.integer(.1*nrow(bedS)), (nrow(bedS)-(as.integer(.1*nrow(bedS))-1)):nrow(bedS)),]
-  circos.par("track.height" = .1)
+  bedS = bedS[order(bedS$value),][c(1:as.integer(.2*nrow(bedS)), (nrow(bedS)-(as.integer(.2*nrow(bedS))-1)):nrow(bedS)),]
+  circos.par("track.height" = .08)
   circos.genomicTrackPlotRegion(data = bedS, panel.fun = function(region,value, ...){
     circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, "coral3", "aquamarine4"), border = NA, ...)
   })
@@ -135,14 +157,14 @@ for(s in nrow(speciesDF):1){
 
 bedH = data.frame(HumanPCA$binInfo[,1:3], value = (HumanPCA$x$new_SINE_PC))
 bedH = bedH[order(bedH$value),][c(1:as.integer(.1*nrow(bedH)), (nrow(bedH)-(as.integer(.1*nrow(bedH))-1)):nrow(bedH)),]
-circos.par("track.height" = .1)
+circos.par("track.height" = .08)
 circos.genomicTrackPlotRegion(data = bedH, panel.fun = function(region,value, ...){
   circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, "coral3", "aquamarine4"), border = NA, ...)
 })
 
 plot.new()
-legend("center", legend = c("high", "low"), fill = c("coral3", "aquamarine4"))
-legend("bottom", legend = c("high", "low"), fill = c("coral3", "aquamarine4"))
+legend("center", legend = c("> 80", "< 20"), fill = c("coral3", "aquamarine4"), title = "percentile",bty = "n")
+legend("bottom", legend = c("ERD"), fill = c("red"), title = "domain", bty = "n")
 
 
 dev.off()

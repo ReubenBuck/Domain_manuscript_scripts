@@ -19,7 +19,7 @@ densitiesBoundary <- c(rep(.1,10),rep(.1,10))
 
 
 for(p in 0:1){
-  pdf(file = paste("writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/biasDemonstrate/boundary",p,".pdf", sep =""))
+ pdf(file = paste("writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/biasDemonstrate/boundary",p,".pdf", sep =""))
   layout(matrix(c(4,1,2,3),nrow = 2),heights = c(2,1), widths = c(1,2))
   plot.new()
   par(mar = c(0,0,5,5))
@@ -58,11 +58,11 @@ for(p in 0:1){
   
   par(mar = c(5,0,1,5))
   
-  plot(smooth(counts/bpFreq),type = "l", ylab = "RTN density", xlab = "distance from feature boundary (bp)", 
+  plot(smooth(counts/bpFreq),type = "l", ylab = "retrotransposon\ndensity", xlab = "distance from feature boundary (bp)", 
        xaxt = "n",xlim = c(0,20), yaxt = "n", lwd = 3)
   axis(side = 1,at = seq(0,20,5),seq(0,1,.25)*10000)
   axis(side = 2, labels = c("low", "mid", "high"), at = c(0, max(smooth(counts/bpFreq)/2),max(smooth(counts/bpFreq))))
-  mtext(text = "RTN density",side = 2, line = 2)
+  mtext(text = "retrotransposon\ndensity",side = 2, line = 2)
   
   
   intervalDense <- NULL
@@ -75,7 +75,7 @@ for(p in 0:1){
        xlim = c(max(smooth(intervalDense/xr))*(1+p),0), type = "l", xlab = "", ylab = "",
        xaxt="n", yaxt = "n", lwd = 3)
   axis(side = 3,labels = c("low", "mid", "high"), at=c(0,(max(smooth(intervalDense/xr))*(1+p))/2,max(smooth(intervalDense/xr))*(1+p) ))
-  mtext(text = "RTN density per interval",side = 3, line = 2)
+  mtext(text = "retrotransposon\ndensity per interval",side = 3, line = 2)
   
   dev.off()
 }

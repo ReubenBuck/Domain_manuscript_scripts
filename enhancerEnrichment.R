@@ -116,13 +116,13 @@ domainL.gr
 findOverlaps(domainE.gr,domainL.gr)
 
 
-
-
-
-enhancers <- read.table("Data/FANTOM5/permissive_enhancers.bed.txt")
-colnames(enhancers) <- c("chr", "start", "end", "name", "score", "strand", "thickStart", "thickEnd", "itemRgb", "blockCount", "blockSizes", "blockStarts")
-enhancer.gr <- GRanges(seqnames = Rle(enhancers$chr),
-                       ranges = IRanges(start = enhancers$start, end = enhancers$end))
+# 
+# 
+# 
+# enhancers <- read.table("Data/FANTOM5/permissive_enhancers.bed.txt")
+# colnames(enhancers) <- c("chr", "start", "end", "name", "score", "strand", "thickStart", "thickEnd", "itemRgb", "blockCount", "blockSizes", "blockStarts")
+# enhancer.gr <- GRanges(seqnames = Rle(enhancers$chr),
+#                        ranges = IRanges(start = enhancers$start, end = enhancers$end))
 
 
 files <- list.files("Data/OpenChromSynth/")
@@ -302,7 +302,7 @@ for(i in 1:5){
     
     gType = c("All","E", "L")[j]
     
-    pdf(file = paste("writing/round2_20160503/draftsTex/TexFigs/supFig/biasLine/dnase1/", repChoice,gType,"OpendnaseNonExon.pdf", sep = ""), height = 5, width = 5)
+    pdf(file = paste("writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/biasLine/dnase1/", repChoice,gType,"OpendnaseNonExon.pdf", sep = ""), height = 5, width = 5)
 
     gapDat.gr <- get(paste("gapsOpenCell", gType, ".gr", sep = ""))
     gapTable <- data.frame(chr = seqnames(gapDat.gr), start = start(gapDat.gr), end = end(gapDat.gr), Known = width(gapDat.gr))
@@ -337,7 +337,7 @@ for(i in 1:5){
     
     seqNo <- seq(1,7.95,by = .05)[summ > 0]
     plot(seqNo,agg$x[summ > 0]/summ[summ > 0], main = "", xlim = c(.9,7), 
-         xlab = "interval length (kb)", ylab = "RTN density", ylim = c(0,.3), pch = 16, col = TEcols, xaxt = "n")
+         xlab = "interval length (kb)", ylab = "retrotransposon density", ylim = c(0,.3), pch = 16, col = TEcols, xaxt = "n")
     axis(side = 1, at = c(seq(0,8,by = 1)), labels = c((10^seq(0,8,by = 1))/1000))
     lines(seqNo,m[summ > 0]/aggp$x[summ > 0], lty = 2)
     lines(seqNo,(m + (3*SD))[summ > 0]/aggp$x[summ > 0])
@@ -438,9 +438,10 @@ for(i in 1:4){
   
   sd <- (sqrt(bpFreq * TEs_posStats$p * (1 - TEs_posStats$p))/(bpFreq))
   
-  pdf(file = paste("writing/round2_20160503/draftsTex/TexFigs/supFig/corrected/dnase1/", gType, TEfam,".pdf", sep = ""), height = 3, width = 10)
+  pdf(file = paste("writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/corrected/dnase1/", gType, TEfam,".pdf", sep = ""), height = 3, width = 10)
+  par(mar = c(5,5,5,2))
   plot((1:(lenChoice +1)), rate, col = 3, type = "n", ylim = c(0,.35), 
-       main = "", ylab = "RTN density", 
+       main = "", ylab = "retrotransposon\ndensity", 
        xlab = "distance from boundary (bp)", yaxt = "n")
   axis(side = 2,at = seq(0,1,.1), las = 2)
   lines((usePos), aggTEmean$x, type = "l", col = "grey60", lwd = 3)

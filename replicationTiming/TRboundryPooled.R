@@ -61,27 +61,37 @@ names(RTdomain) <- cellName
 # basicly the start of a down domain and the end of an up domaintwisted around
 cellType <- "Huvec"
 
-TTR <- RTdomain[[cellType]][RTdomain[[cellType]]$domain %in% c("UTZ","DTZ") ,]
-Edomain <- RTdomain[[cellType]][RTdomain[[cellType]]$domain == "ERD" ,]
-Ldomain <- RTdomain[[cellType]][RTdomain[[cellType]]$domain == "LRD" ,]
 
+TTRrotate2 <- TTRchr2 <- TTReb2 <- TTRlb2 <- NULL
+for(cellType in 1:length(RTdomain)){
+  TTR <- RTdomain[[cellType]][RTdomain[[cellType]]$domain %in% c("UTZ","DTZ") ,]
+  Edomain <- RTdomain[[cellType]][RTdomain[[cellType]]$domain == "ERD" ,]
+  Ldomain <- RTdomain[[cellType]][RTdomain[[cellType]]$domain == "LRD" ,]
+  
+  RTdomains <- read.table("Data/ConsTimingDomains", header = T)
+  RTdomains <- RTdomains[complete.cases(RTdomains),]
+  Edomain <- RTdomains[RTdomains$domain == "ERD",]
+  Ldomain <- RTdomains[RTdomains$domain == "LRD",]
+  
+  #boxplot(list(TTR = TTR$end - TTR$start, Edomain = Edomain$end - Edomain$start,Ldomain = Ldomain$end- Ldomain$start),log = "y")
+  TTRchr <- c(TTR$chr[TTR$domain == "UTZ"], TTR$chr[TTR$domain == "DTZ"])
+  TTReb <- c(TTR$end[TTR$domain == "UTZ"], TTR$start[TTR$domain == "DTZ"])
+  TTRlb <- c(TTR$start[TTR$domain == "UTZ"], TTR$end[TTR$domain == "DTZ"])
+  
+  TTRrotate <- rep(2, nrow(TTR))
+  TTRrotate[1:nrow(TTR[TTR$domain == "UTZ",])] = 1
+  
+  TTRchr2 <- c(TTRchr2, TTRchr)
+  TTReb2 <- c(TTReb2, TTReb)
+  TTRlb2 <- c(TTRlb2, TTRlb)
+  
+  TTRrotate2 <- c(TTRrotate2, TTRrotate)
+}
 
-RTdomains <- read.table("Data/ConsTimingDomains", header = T)
-RTdomains <- RTdomains[complete.cases(RTdomains),]
-Edomain <- RTdomains[RTdomains$domain == "ERD",]
-Ldomain <- RTdomains[RTdomains$domain == "LRD",]
-
-
-
-boxplot(list(TTR = TTR$end - TTR$start, Edomain = Edomain$end - Edomain$start,Ldomain = Ldomain$end- Ldomain$start),log = "y")
-
-
-TTRchr <- c(TTR$chr[TTR$domain == "UTZ"], TTR$chr[TTR$domain == "DTZ"])
-TTReb <- c(TTR$end[TTR$domain == "UTZ"], TTR$start[TTR$domain == "DTZ"])
-TTRlb <- c(TTR$start[TTR$domain == "UTZ"], TTR$end[TTR$domain == "DTZ"])
-
-TTRrotate <- rep(2, nrow(TTR))
-TTRrotate[1:nrow(TTR[TTR$domain == "UTZ",])] = 1
+TTRrotate <- TTRrotate2
+TTRchr <- TTRchr2
+TTReb <- TTReb2
+TTRlb <- TTRlb2
 
 
 binSize <- 50000
@@ -134,11 +144,19 @@ earlyAnno <- boundaryAnotation(repList = joinRepChromatin[1:4], binSize = binSiz
 # 
 # #### wave file 
 
-
 whichEB <- GRanges(seqnames=Rle(TTRchr), 
                    ranges=IRanges(start = TTReb - (regionSize/2), end = TTReb + (regionSize/2))
 )
-bigEB <- import("Data/UW_repliSeq/wgEncodeUwRepliSeqHuvecWaveSignalRep1.bigWig", format = "bw", which = whichEB)
+
+bigEBmeta <- NULL
+files <- list.files("Data/UW_repliSeq/")
+for(i in 1:length(files)){
+  bigEB <- import(paste("Data/UW_repliSeq/", files[i], sep = ""), format = "bw", which = whichEB)
+  bigEBmeta <- cbind(bigEBmeta, (elementMetadata(bigEB)$score))
+}
+elementMetadata(bigEB)$score <- rowMeans(bigEBmeta)
+
+
 
 # whichLB <- GRanges(seqnames=Rle(TTRchr), 
 #                    ranges=IRanges(start = TTRlb - (regionSize/2), end = TTRlb + (regionSize/2))
@@ -162,7 +180,7 @@ WaveList <- list(
 
 
 
-pdf(file = "plots/repliBoundry/HUVECrtn.pdf", onefile = TRUE, width = 3.5, height = 10)
+pdf(file = "plots/repliBoundry/PooledRtn.pdf", onefile = TRUE, width = 3.5, height = 10)
 
 #### plotting things from beofre
  layout(matrix(c(3,2,1,4), nrow = 4))
@@ -233,6 +251,7 @@ for(TEs in 1:4){
   }
   
 }
+  
 a <- axis(1,c(.5,10.5,20.5,30.5,40.5), labels = FALSE)
 mtext(text = c(1,.5,0,.5,1),at = a,side = 1,line = 1.25, cex = 1.2)
 

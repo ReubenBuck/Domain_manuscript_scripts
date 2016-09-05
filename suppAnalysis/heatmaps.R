@@ -180,10 +180,10 @@ mtext(side = 2,at = seq(0,1,.25),text  = seq(-1,1,length.out = 5),las = 2,line =
 dev.off()
 
 
-pdf(file = "writing/round2_20160503/draftsTex/TexFigs/supFig/legends/groups.pdf")
+pdf(file = "writing/round2_20160503/draftsTex/supmaterial/TexFigs/supFig/legends/groups.pdf")
 layout(1)
 plot(1,type = "n", axes = FALSE,xlab = "", ylab = "")
-legend("center", legend = c("new SINE", "new L1", "old L1", "ancient"), title = "RTN groups",
+legend("center", legend = c("new SINE", "new L1", "old L1", "ancient"), title = "retrotransposon\ngroups",
        fill = c("darkgreen", "purple", "red", "darkblue"), box.lwd = -1, cex = 2,box.col = "white")
 dev.off()
 

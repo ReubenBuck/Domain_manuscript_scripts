@@ -510,7 +510,7 @@ geneModelplot <- function(chr.choice = NULL, pos.coor = NULL, neg.coor = NULL, i
 reuben.biplot <- function (x, y, var.axes = TRUE, col, cex = rep(par("cex"), 2), 
                            xlabs = NULL, ylabs = NULL, expand = 1, xlim = NULL, ylim = NULL, 
                            arrow.len = 0.1, main = NULL, sub = NULL, xlab = NULL, ylab = NULL, x.col = 1, y.col = 2,text.col = 1,
-                           text.cex = 1,arrow.lwd = 1, ...) {
+                           text.cex = 1,arrow.lwd = 1, ratio = NULL, ...) {
   n <- nrow(x)
   p <- nrow(y)
   if (missing(xlabs)) {
@@ -549,7 +549,9 @@ reuben.biplot <- function (x, y, var.axes = TRUE, col, cex = rep(par("cex"), 2),
     xlim <- rangx1
   else if (missing(ylim)) 
     ylim <- rangx2
-  ratio <- max(rangy1/rangx1, rangy2/rangx2)/expand
+  if (is.null(ratio)) {
+    ratio <- max(rangy1/rangx1, rangy2/rangx2)/expand
+  }
   on.exit(par(op))
   op <- par(pty = "s")
   if (!is.null(main)) 
@@ -584,10 +586,10 @@ reuben.biplot <- function (x, y, var.axes = TRUE, col, cex = rep(par("cex"), 2),
     ylim = ylim * ratio, 
     xlab = "", 
     ylab = "", 
-    col = y.col, 
+    col = y.col,
     ...)
-  axis(3, col = col[2L], ...)
-  axis(4, col = col[2L], ...)
+  # axis(3, col = col[2L], ...)
+  #  axis(4, col = col[2L], ...)
   box(col = col[1L])
   text(y, 
        labels = ylabs, 
