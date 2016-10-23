@@ -29,7 +29,7 @@ for(s in speciesDF$spec){
 }
 
  
-pdf(file="~/Desktop/Domain_manuscript/plots/FIg1/PCA_wiggle/wiggle.pdf", width=20, height=10)
+pdf(file="~/Desktop/Domain_manuscript/plots/Fig1/PCA_wiggle/wiggle.pdf", width=20, height=10)
 layout(matrix(c(1,2)))
 par(mar=c(2,5,5,5))
 
@@ -102,7 +102,9 @@ par(mar = c(1,1,1,1))
 
 
 
-pdf(file = "~/Desktop/Domain_manuscript/plots/FIg1/ancPCAcircos.pdf",onefile = T)
+col1 = "plum4"
+col2 = "aquamarine4"
+pdf(file = paste("~/Desktop/Domain_manuscript/plots/Fig1/ancPCAcircos", col1, "_", col2,".pdf", sep = ""),onefile = T)
 
 circos.initializeWithIdeogram(species = "hg19", plotType = c( "labels"), sort.chr = T)
 circos.par("track.height" = .05)
@@ -119,7 +121,7 @@ for(s in nrow(speciesDF):1){
   bedS = bedS[order(bedS$value),][c(1:as.integer(.2*nrow(bedS)), (nrow(bedS)-(as.integer(.2*nrow(bedS))-1)):nrow(bedS)),]
   circos.par("track.height" = .08)
   circos.genomicTrackPlotRegion(data = bedS, panel.fun = function(region,value, ...){
-    circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, "coral3", "aquamarine4"), border = NA, ...)
+    circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, col1, col2), border = NA, ...)
   })
   
 }
@@ -128,13 +130,13 @@ bedH = data.frame(HumanPCA$binInfo[,1:3], value = (HumanPCA$x$ancient_PC))
 bedH = bedH[order(bedH$value),][c(1:as.integer(.2*nrow(bedH)), (nrow(bedH)-(as.integer(.2*nrow(bedH))-1)):nrow(bedH)),]
 circos.par("track.height" = .08)
 circos.genomicTrackPlotRegion(data = bedH, panel.fun = function(region,value, ...){
-  circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, "coral3", "aquamarine4"), border = NA, ...)
+  circos.genomicRect(region,value,col = ifelse(value[[1]] > 0, col1, col2), border = NA, ...)
 })
 dev.off()
 
 
 
-pdf(file = "~/Desktop/Domain_manuscript/plots/FIg1/newPCAcircos.pdf",onefile = T)
+pdf(file = "~/Desktop/Domain_manuscript/plots/Fig1/newPCAcircos.pdf",onefile = T)
 circos.initializeWithIdeogram(species = "hg19", plotType = c( "labels"))
 circos.par("track.height" = .05)
 circos.genomicTrackPlotRegion(data = RDs, bg.border = "white", panel.fun = function(region,value, ...){
@@ -171,7 +173,7 @@ dev.off()
 
 
 
-
+## pick some new colours tomorrow !!!
 
 
 

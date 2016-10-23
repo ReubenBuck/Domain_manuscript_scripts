@@ -671,7 +671,7 @@ removeRepAlign <- function(refSpecGenome, queSpecGenome, refSpec, queSpec){
   names(chrom_infoQue) <- chrom_info[,1]
   
   
-  align <- read.table(paste("~/Desktop/Domain_manuscript/Data/usable_alignmnet/",refSpecGenome,".",queSpecGenome,".axt.txt", sep = ""), 
+  align <- read.table(paste("~/Desktop/Domain_manuscript/Data/usable_alignment/",refSpecGenome,".",queSpecGenome,".axt.txt", sep = ""), 
                       colClasses= c("character", "character", "numeric", "numeric", "character", "numeric", "numeric", "character", "numeric"))
   colnames(align) <- c("Alignment_number", "chrRef", "startRef", "endRef", "chrQue", "startQue", "endQue", "strand", "blastzScore")
   

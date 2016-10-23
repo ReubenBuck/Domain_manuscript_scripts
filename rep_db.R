@@ -7,7 +7,7 @@
 
 rep_info <- function(spec1, genome){
   
-  rep_name <- paste( "~/Desktop/topological_domains/TD_Data/rmsk/", genome,"_rmsk.txt" , sep = "")
+  rep_name <- paste( "~/Desktop/Domain_manuscript/Data/rmskTable/", genome,"_rmsk.txt" , sep = "")
   
   
   rep <- read.table(file= rep_name,
@@ -17,8 +17,12 @@ rep_info <- function(spec1, genome){
                                   "character",   # strand
                                   "factor", "factor", "factor",     # classifications
                                   "integer", "integer", "integer", "integer"),        # more coordinates
-                    comment.char="",
-                    header = T, fill = T
+                    col.names= c("bin", "swScore", "milliDiv", "milliDel", "milliIns",
+                                 "genoName", "genoStart", "genoEnd", "genoLeft",
+                                 "strand", "repName", "repClass", "repFamily", 
+                                 "repStart", "repEnd", "repLeft", "id"),
+                    comment.char="#",
+                    header = FALSE, fill = TRUE
   )
   
   

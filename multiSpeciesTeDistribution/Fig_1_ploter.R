@@ -11,7 +11,7 @@ require(ggbio)
 
 setwd("~/Desktop/Dist_matrix_TE_div/")
 
-source(file="~/Desktop/element_curves/element_curves_scripts/functions.R")
+source(file="~/Desktop/Domain_manuscript/Domain_manuscript_scripts/functions.R")
 
 
 spec1 <- "Human"

@@ -21,6 +21,7 @@ library(rtracklayer)
 
 rm(list = ls())
 
+library(rtracklayer)
 
 source("~/Desktop/Domain_manuscript/Domain_manuscript_scripts/rep_db.R")
 source(file="~/Desktop/Domain_manuscript/Domain_manuscript_scripts/functions.R")
@@ -32,7 +33,7 @@ bin.size = 1000000
 speciesDF <- data.frame(spec = c("Human", "Dog", "Chimp", "Mouse", "Rhesus"), genome = c("hg19", "canFam3","panTro4", "mm9", "rheMac3"))
 
 
-for(s in 2:(nrow(speciesDF)-1)){
+for(s in 1:(nrow(speciesDF))){
   rep <- rep_info(spec1=speciesDF$spec[s], genome=speciesDF$genome[s])
   # remove unplaced chromosomes from repeats
   TE.names <- names(rep)
